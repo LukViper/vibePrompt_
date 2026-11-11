@@ -23,7 +23,8 @@ import type {
   UserPublic,
 } from "../types";
 
-const BASE = "/api";
+const BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
+const API_SECRET = (import.meta.env.VITE_API_SECRET || "").trim();
 const TOKEN_KEY = "vibeprompt_token";
 
 export function getToken(): string | null {
@@ -35,14 +36,21 @@ export function setToken(token: string | null): void {
   else localStorage.removeItem(TOKEN_KEY);
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+function authHeaders(extra?: HeadersInit): HeadersInit {
   const token = getToken();
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(API_SECRET ? { "X-API-Secret": API_SECRET } : {}),
+    ...(extra ?? {}),
+  };
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init?.headers ?? {}),
+      ...authHeaders(init?.headers),
     },
   });
   if (!res.ok) {
@@ -192,11 +200,10 @@ export const api = {
   processKnowledgeBook: (id: string) =>
     request<Record<string, unknown>>(`/knowledge/books/${id}/process`, { method: "POST" }),
   uploadKnowledgeBook: async (form: FormData) => {
-    const token = getToken();
     const res = await fetch(`${BASE}/knowledge/books/upload`, {
       method: "POST",
       headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...authHeaders(),
       },
       body: form,
     });

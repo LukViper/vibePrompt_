@@ -10,6 +10,29 @@ Staging/production packaging for the API (+ optional web UI). Grill, Books-to-Sk
 | `web` | nginx SPA; proxies `/api/` to `api:8000` |
 | `backup` | Optional profile — one-shot SQLite online backup into `/data/backups` |
 
+## Vercel (frontend SPA)
+
+The React/Vite UI is Vercel-ready via root `vercel.json` (builds `frontend/`, serves `frontend/dist`, SPA fallback).
+
+The FastAPI + SQLite API is **not** hosted on Vercel (persistent volume, long LLM calls). Run the API with compose/Docker (or equivalent) and point the SPA at it.
+
+### Connect the GitHub repo
+
+1. Import `LukViper/vibePrompt_` in Vercel (root directory = repository root; `vercel.json` already sets install/build/output).
+2. Set Environment Variables (Production / Preview as needed):
+
+| Variable | Purpose |
+|---|---|
+| `VITE_API_BASE_URL` | Absolute API base including `/api`, e.g. `https://api.example.com/api` |
+| `VITE_API_SECRET` | Same value as backend `API_SECRET` (sent as `X-API-Secret`) |
+| `VITE_SUPABASE_URL` | Supabase project URL (if using Supabase auth) |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon / publishable key |
+
+3. On the API host, set `CORS_ORIGINS` to the exact Vercel HTTPS origin(s), e.g. `https://your-app.vercel.app`.
+4. Redeploy after env changes (Vite inlines `VITE_*` at build time).
+
+Local frontend env template: `frontend/.env.example`.
+
 Persistent volume: compose service mount `vibeprompt_data` → `/data` (project-scoped volume name by default)  
 - Database: `/data/vibeprompt.db`  
 - Uploads: `/data/knowledge/uploads`  

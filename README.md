@@ -61,6 +61,10 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173). Vite proxies `/api` to the backend.
 
+### Vercel (UI)
+
+The SPA deploys from the repo root via `vercel.json`. Host the FastAPI API separately (compose), set `VITE_API_BASE_URL` / `VITE_API_SECRET` / optional Supabase `VITE_*` in Vercel, and put the Vercel origin in API `CORS_ORIGINS`. Details: `docs/DEPLOYMENT_AND_RECOVERY.md`.
+
 ## Configuration
 
 See `backend/.env.example`.
