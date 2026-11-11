@@ -1,4 +1,4 @@
-"""OpenAI-compatible chat completions client (OpenRouter, Groq, etc.)."""
+"""OpenAI-compatible chat completions client (OpenRouter, Groq, Qwen, etc.)."""
 
 from __future__ import annotations
 
@@ -11,13 +11,19 @@ import httpx
 from app.providers.base import (
     CandidateFinding,
     CriticReview,
+    GenerationSettings,
     ModelProvider,
     PrimaryAnalysis,
     ProviderError,
     ProviderErrorKind,
 )
 from app.providers.parsing import parse_critic_review, parse_primary_analysis
-from app.providers.prompts import build_critic_prompt, build_primary_prompt
+from app.providers.prompts import (
+    build_critic_prompt,
+    build_primary_system,
+    build_primary_user_payload,
+    normalize_history,
+)
 
 logger = logging.getLogger("vibeprompt.providers")
 
@@ -67,6 +73,8 @@ class OpenAICompatProvider(ModelProvider):
         client: httpx.AsyncClient | None = None,
         supports_primary: bool = True,
         supports_critic: bool = True,
+        supports_top_p: bool = False,
+        supports_json_response_format: bool = True,
     ) -> None:
         self.name = name
         self.api_key = api_key.strip()
@@ -79,6 +87,8 @@ class OpenAICompatProvider(ModelProvider):
         self._client = client
         self.supports_primary = supports_primary
         self.supports_critic = supports_critic
+        self.supports_top_p = supports_top_p
+        self.supports_json_response_format = supports_json_response_format
 
     def is_available(self) -> bool:
         return bool(self.api_key)
@@ -89,6 +99,8 @@ class OpenAICompatProvider(ModelProvider):
         project_snapshot: dict[str, Any],
         user_message: str,
         conversation_tail: list[dict[str, str]],
+        behavioural_mode: str = "conversational",
+        generation: GenerationSettings | None = None,
     ) -> PrimaryAnalysis:
         if not self.supports_primary:
             raise ProviderError(
@@ -100,15 +112,21 @@ class OpenAICompatProvider(ModelProvider):
                 ProviderErrorKind.UNAVAILABLE,
                 f"{self.name} API key not configured",
             )
-        prompt = build_primary_prompt(
+        gen = generation or GenerationSettings()
+        system = build_primary_system(
+            behavioural_mode,
+            skill_knowledge_block=gen.skill_knowledge_block,
+            review_intensity=gen.review_intensity,
+        )
+        history = normalize_history(conversation_tail)
+        user_payload = build_primary_user_payload(
             project_snapshot=project_snapshot,
             user_message=user_message,
-            conversation_tail=conversation_tail,
         )
-        text = await self._chat(
-            system="You are Grill. Respond with JSON only.",
-            user=prompt,
-        )
+        messages: list[dict[str, str]] = [{"role": "system", "content": system}]
+        messages.extend(history)
+        messages.append({"role": "user", "content": user_payload})
+        text = await self._chat(messages=messages, generation=gen)
         return parse_primary_analysis(text)
 
     async def critique(
@@ -118,6 +136,7 @@ class OpenAICompatProvider(ModelProvider):
         user_message: str,
         candidate_findings: list[CandidateFinding],
         primary_reply: str,
+        generation: GenerationSettings | None = None,
     ) -> CriticReview:
         if not self.supports_critic:
             raise ProviderError(
@@ -129,30 +148,42 @@ class OpenAICompatProvider(ModelProvider):
                 ProviderErrorKind.UNAVAILABLE,
                 f"{self.name} API key not configured",
             )
+        gen = generation or GenerationSettings(temperature=0.2)
         prompt = build_critic_prompt(
             project_snapshot=project_snapshot,
             user_message=user_message,
             candidate_findings=[f.model_dump() for f in candidate_findings],
             primary_reply=primary_reply,
         )
-        text = await self._chat(
-            system="You are an independent critic. Respond with JSON only.",
-            user=prompt,
-        )
+        messages = [
+            {
+                "role": "system",
+                "content": "You are an independent critic. Respond with JSON only. Never rewrite the primary reply.",
+            },
+            {"role": "user", "content": prompt},
+        ]
+        text = await self._chat(messages=messages, generation=gen)
         return parse_critic_review(text)
 
-    async def _chat(self, *, system: str, user: str) -> str:
+    async def _chat(
+        self,
+        *,
+        messages: list[dict[str, str]],
+        generation: GenerationSettings,
+    ) -> str:
         url = f"{self.base_url}/chat/completions"
-        body = {
+        max_tokens = generation.max_output_tokens or self.max_output_tokens
+        body: dict[str, Any] = {
             "model": self.model,
-            "temperature": 0.2,
-            "max_tokens": self.max_output_tokens,
-            "response_format": {"type": "json_object"},
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
+            "temperature": generation.temperature,
+            "max_tokens": max_tokens,
+            "messages": messages,
         }
+        if self.supports_json_response_format:
+            body["response_format"] = {"type": "json_object"}
+        if self.supports_top_p and generation.top_p is not None:
+            body["top_p"] = generation.top_p
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -224,6 +255,7 @@ class OpenAICompatProvider(ModelProvider):
                         "success": True,
                         "failure_kind": None,
                         "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+                        "temperature": generation.temperature,
                     },
                 )
                 return content if isinstance(content, str) else str(content)

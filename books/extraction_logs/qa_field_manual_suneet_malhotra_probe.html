@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-black"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no">
+
+    <!-- Primary Meta Tags -->
+    <title>The QA Field Manual to Language Models | Suneet Malhotra</title>
+    <meta name="title" content="The QA Field Manual to Language Models | Suneet Malhotra">
+    <meta name="description" content="A free 24-chapter book for QA engineers: understand how language models actually work, then build a small local model that reads a failing Playwright test an...">
+    <meta name="keywords" content="QA automation book, language models for QA, local LLM testing, Playwright AI, fine-tuning QA model, MLX LoRA, test automation AI, free QA book, AI for test engineers">
+    <meta name="author" content="Suneet Malhotra">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <link rel="canonical" href="https://suneetmalhotra.com/tools/qa-field-manual">
+    <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <meta name="bingbot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    
+    <!-- Security Meta Tags (Critical for Safari HTTPS validation) -->
+    <!-- Note: GitHub Pages doesn't support HTTP headers, so we use meta tags -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://esm.sh https://cdn.jsdelivr.net https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob: https://i.ytimg.com https://images.unsplash.com; connect-src 'self' https: wss:; frame-src 'self' https://www.youtube.com https://youtube.com; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta http-equiv="Strict-Transport-Security" content="max-age=31536000; includeSubDomains; preload">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()">
+
+    <!-- Open Graph / Facebook / LinkedIn -->
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://suneetmalhotra.com/tools/qa-field-manual">
+    <meta property="og:title" content="The QA Field Manual to Language Models | Suneet Malhotra">
+    <meta property="og:description" content="A free 24-chapter book for QA engineers: understand how language models actually work, then build a small local model that reads a failing Playwright test an...">
+    <meta property="og:image" content="https://suneetmalhotra.com/og-tools.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Suneet Malhotra Portfolio">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://suneetmalhotra.com/tools/qa-field-manual">
+    <meta name="twitter:title" content="The QA Field Manual to Language Models | Suneet Malhotra">
+    <meta name="twitter:description" content="A free 24-chapter book for QA engineers: understand how language models actually work, then build a small local model that reads a failing Playwright test an...">
+    <meta name="twitter:image" content="https://suneetmalhotra.com/og-tools.jpg">
+    <meta name="twitter:creator" content="@SuneetMalhotra">
+
+    <!-- LinkedIn -->
+    <meta property="linkedin:owner" content="suneet-m">
+    
+    <!-- GitHub -->
+    <meta name="github:creator" content="SuneetMalhotra">
+    <link rel="me" href="https://github.com/SuneetMalhotra">
+
+    <!-- Favicon - Custom "S" Logo -->
+    <link rel="icon" type="image/png" href="/favicon-s.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-s.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-s.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon-s.png">
+    <link rel="manifest" href="/site.webmanifest">
+
+    <!-- RSS Feed -->
+    <link rel="alternate" type="application/rss+xml" title="Suneet Malhotra — AI, QA, and Quant" href="/feed.xml">
+
+    <!-- Preconnect to external domains for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    <link rel="dns-prefetch" href="https://esm.sh">
+    <link rel="dns-prefetch" href="https://www.youtube.com">
+
+    <!-- Styling & Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        plugins: {
+          typography: {},
+        }
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            scroll-behavior: smooth; 
+            background-color: #000; 
+            color: #fff; 
+        }
+        ::selection { background: #fff; color: #000; }
+        /* Custom scrollbar for modern feel */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #333; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        /* Highlight.js dark theme for code blocks */
+        .hljs {
+          display: block;
+          overflow-x: auto;
+          padding: 1em;
+          background: #0d1117;
+          color: #c9d1d9;
+        }
+        .hljs-comment, .hljs-quote { color: #8b949e; font-style: italic; }
+        .hljs-keyword, .hljs-selector-tag, .hljs-subst { color: #ff7b72; }
+        .hljs-number, .hljs-literal, .hljs-variable, .hljs-template-variable, .hljs-tag .hljs-attr { color: #79c0ff; }
+        .hljs-string, .hljs-doctag { color: #a5d6ff; }
+        .hljs-title, .hljs-section, .hljs-selector-id { color: #7ee787; font-weight: bold; }
+        .hljs-type, .hljs-class .hljs-title { color: #ffa657; }
+        .hljs-tag, .hljs-name, .hljs-attribute { color: #7ee787; font-weight: normal; }
+        .hljs-regexp, .hljs-link { color: #a5d6ff; }
+        .hljs-symbol, .hljs-bullet { color: #f85149; }
+        .hljs-built_in, .hljs-builtin-name { color: #ffa657; }
+        .hljs-meta { color: #8b949e; }
+        .hljs-deletion { background: #f85149; }
+        .hljs-addition { background: #7ee787; }
+        .hljs-emphasis { font-style: italic; }
+        .hljs-strong { font-weight: bold; }
+        
+        /* Line clamp utility for text truncation */
+        .line-clamp-3 {
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        
+        /* Force minimum line-height for blog content readability */
+        .prose p {
+          line-height: 1.8 !important;
+          min-height: 1.8em;
+        }
+        
+        /* Mermaid diagram styling */
+        .mermaid {
+          background: transparent;
+          text-align: center;
+        }
+        
+        .mermaid svg {
+          max-width: 100%;
+          height: auto;
+        }
+        
+        /* Gradient text animation */
+        @keyframes gradient {
+          0%, 100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+        }
+        
+        .animate-gradient {
+          background-size: 200% 200%;
+          animation: gradient 3s ease infinite;
+        }
+    </style>
+  <script type="module" crossorigin="" src="/assets/index-CvaQxtxH.js"></script>
+  <link rel="stylesheet" crossorigin="" href="/assets/index-BEHUn5zE.css">
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.pointer-events-none{pointer-events:none}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.inset-0{inset:0px}.bottom-0{bottom:0px}.left-0{left:0px}.right-0{right:0px}.top-0{top:0px}.z-10{z-index:10}.z-30{z-index:30}.z-50{z-index:50}.z-\[60\]{z-index:60}.mx-auto{margin-left:auto;margin-right:auto}.mb-1{margin-bottom:0.25rem}.mb-10{margin-bottom:2.5rem}.mb-12{margin-bottom:3rem}.mb-16{margin-bottom:4rem}.mb-2{margin-bottom:0.5rem}.mb-3{margin-bottom:0.75rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mb-8{margin-bottom:2rem}.mt-4{margin-top:1rem}.ml-1{margin-left:0.25rem}.flex{display:flex}.inline-flex{display:inline-flex}.grid{display:grid}.hidden{display:none}.h-0\.5{height:0.125rem}.h-2\.5{height:0.625rem}.h-3{height:0.75rem}.h-4{height:1rem}.h-6{height:1.5rem}.min-h-screen{min-height:100vh}.w-0{width:0px}.w-2\.5{width:0.625rem}.w-3{width:0.75rem}.w-4{width:1rem}.w-6{width:1.5rem}.w-full{width:100%}.max-w-3xl{max-width:48rem}.max-w-4xl{max-width:56rem}.max-w-5xl{max-width:64rem}.max-w-7xl{max-width:80rem}.max-w-xl{max-width:36rem}.flex-1{flex:1 1 0%}.flex-grow{flex-grow:1}.translate-y-0{--tw-translate-y:0px;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}@keyframes ping{75%, 100%{transform:scale(2);opacity:0}}.animate-ping{animation:ping 1s cubic-bezier(0, 0, 0.2, 1) infinite}@keyframes pulse{50%{opacity:.5}}.animate-pulse{animation:pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite}@keyframes spin{to{transform:rotate(360deg)}}.animate-spin{animation:spin 1s linear infinite}.scroll-mt-24{scroll-margin-top:6rem}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.items-stretch{align-items:stretch}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-1\.5{gap:0.375rem}.gap-2{gap:0.5rem}.gap-3{gap:0.75rem}.gap-4{gap:1rem}.gap-5{gap:1.25rem}.gap-6{gap:1.5rem}.gap-8{gap:2rem}.space-y-2 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.5rem * var(--tw-space-y-reverse))}.space-y-3 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.75rem * var(--tw-space-y-reverse))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.whitespace-nowrap{white-space:nowrap}.rounded{border-radius:0.25rem}.rounded-2xl{border-radius:1rem}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:0.5rem}.rounded-md{border-radius:0.375rem}.rounded-xl{border-radius:0.75rem}.border-b{border-bottom-width:1px}.border-t{border-top-width:1px}.bg-black{--tw-bg-opacity:1;background-color:rgb(0 0 0 / var(--tw-bg-opacity, 1))}.bg-cyan-400{--tw-bg-opacity:1;background-color:rgb(34 211 238 / var(--tw-bg-opacity, 1))}.bg-green-500{--tw-bg-opacity:1;background-color:rgb(34 197 94 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.p-10{padding:2.5rem}.p-2{padding:0.5rem}.p-6{padding:1.5rem}.p-7{padding:1.75rem}.px-2{padding-left:0.5rem;padding-right:0.5rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.px-7{padding-left:1.75rem;padding-right:1.75rem}.py-0\.5{padding-top:0.125rem;padding-bottom:0.125rem}.py-1\.5{padding-top:0.375rem;padding-bottom:0.375rem}.py-16{padding-top:4rem;padding-bottom:4rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.py-3\.5{padding-top:0.875rem;padding-bottom:0.875rem}.pb-24{padding-bottom:6rem}.pt-20{padding-top:5rem}.pt-24{padding-top:6rem}.pt-8{padding-top:2rem}.text-center{text-align:center}.font-mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-\[10px\]{font-size:10px}.text-\[11px\]{font-size:11px}.text-base{font-size:1rem;line-height:1.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.leading-relaxed{line-height:1.625}.leading-snug{line-height:1.375}.tracking-\[0\.12em\]{letter-spacing:0.12em}.tracking-\[0\.15em\]{letter-spacing:0.15em}.tracking-wider{letter-spacing:0.05em}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.text-cyan-400{--tw-text-opacity:1;color:rgb(34 211 238 / var(--tw-text-opacity, 1))}.text-gray-300{--tw-text-opacity:1;color:rgb(209 213 219 / var(--tw-text-opacity, 1))}.text-gray-400{--tw-text-opacity:1;color:rgb(156 163 175 / var(--tw-text-opacity, 1))}.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.opacity-75{opacity:0.75}.opacity-\[0\.025\]{opacity:0.025}.shadow-2xl{--tw-shadow:0 25px 50px -12px rgb(0 0 0 / 0.25);--tw-shadow-colored:0 25px 50px -12px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.backdrop-blur-md{--tw-backdrop-blur:blur(12px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-colors{transition-property:color, background-color, border-color, fill, stroke, -webkit-text-decoration-color;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, -webkit-text-decoration-color;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-opacity{transition-property:opacity;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-transform{transition-property:transform;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.duration-200{transition-duration:200ms}.duration-300{transition-duration:300ms}.hover\:text-cyan-400:hover{--tw-text-opacity:1;color:rgb(34 211 238 / var(--tw-text-opacity, 1))}.hover\:text-white:hover{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.group:hover .group-hover\:w-full{width:100%}@media (min-width: 640px){.sm\:flex-row{flex-direction:row}.sm\:items-end{align-items:flex-end}.sm\:items-center{align-items:center}.sm\:px-6{padding-left:1.5rem;padding-right:1.5rem}.sm\:text-right{text-align:right}}@media (min-width: 768px){.md\:flex{display:flex}.md\:hidden{display:none}.md\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.md\:text-6xl{font-size:3.75rem;line-height:1}.md\:text-xl{font-size:1.25rem;line-height:1.75rem}}@media (min-width: 1024px){.lg\:flex{display:flex}.lg\:grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}}</style><link rel="alternate" hreflang="x-default" href="https://suneetmalhotra.com/tools/qa-field-manual"><meta name="theme-color" content="#09090f"><meta property="og:image:alt" content="The QA Field Manual to Language Models | Suneet Malhotra"><meta property="og:image:type" content="image/jpeg"><meta property="article:author" content="Suneet Malhotra"><meta name="twitter:image:alt" content="The QA Field Manual to Language Models | Suneet Malhotra"><meta name="twitter:site" content="@SuneetMalhotra"><meta name="msapplication-TileColor" content="#09090f"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Suneet Malhotra",
+  "jobTitle": "Sr. Manager, Test Engineering",
+  "worksFor": {
+    "@type": "Organization",
+    "name": "Motorola Solutions",
+    "url": "https://motorolasolutions.com"
+  },
+  "alumniOf": [
+    {
+      "@type": "Organization",
+      "name": "Tinder",
+      "url": "https://tinder.com"
+    },
+    {
+      "@type": "Organization",
+      "name": "Amazon",
+      "department": "Ring",
+      "url": "https://ring.com"
+    },
+    {
+      "@type": "Organization",
+      "name": "Spokeo",
+      "url": "https://spokeo.com"
+    },
+    {
+      "@type": "Organization",
+      "name": "Live Nation",
+      "url": "https://livenation.com"
+    }
+  ],
+  "description": "AI-Driven Quality Engineering Leader with 20+ years of experience scaling distributed systems and developer platforms. Pioneering AI-driven QA and high-velocity infrastructure.",
+  "url": "https://suneetmalhotra.com",
+  "image": "https://suneetmalhotra.com/og-tools.jpg",
+  "sameAs": [
+    "https://www.linkedin.com/in/suneet-m",
+    "https://github.com/SuneetMalhotra",
+    "https://twitter.com/SuneetMalhotra",
+    "https://x.com/SuneetMalhotra"
+  ],
+  "memberOf": [
+    {
+      "@type": "Organization",
+      "name": "IEEE",
+      "url": "https://www.ieee.org",
+      "description": "Senior Member"
+    }
+  ],
+  "knowsAbout": [
+    "Quality Engineering",
+    "AI Automation",
+    "Test Automation",
+    "AI-Assisted Software Testing",
+    "LLM-Integrated Testing",
+    "Engineering Leadership",
+    "Distributed Systems",
+    "Developer Platforms",
+    "Playwright",
+    "Selenium",
+    "CI/CD",
+    "DevOps"
+  ]
+}</script><script type="application/ld+json" data-schema="SoftwareApplication">{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "AI Tool - Personal Technical Demonstration",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Cross-platform",
+  "description": "A free 24-chapter book for QA engineers: understand how language models actually work, then build a small local model that reads a failing Playwright test an...",
+  "url": "https://suneetmalhotra.com/tools/qa-field-manual",
+  "author": {
+    "@type": "Person",
+    "name": "Suneet Malhotra",
+    "url": "https://suneetmalhotra.com",
+    "sameAs": [
+      "https://www.linkedin.com/in/suneet-m",
+      "https://github.com/SuneetMalhotra",
+      "https://twitter.com/SuneetMalhotra"
+    ]
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  },
+  "softwareVersion": "1.0",
+  "releaseNotes": "Personal technical demonstration showcasing AI-driven quality engineering tools",
+  "featureList": [
+    "AI-Powered",
+    "Open Source",
+    "Research Project"
+  ],
+  "screenshot": "https://suneetmalhotra.com/og-tools.jpg",
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "5",
+    "ratingCount": "1"
+  },
+  "keywords": "QA automation book, language models for QA, local LLM testing, Playwright AI, fine-tuning QA model, MLX LoRA, test automation AI, free QA book, AI for test engineers"
+}</script></head>
+<body class="bg-black text-white antialiased">
+
+    <!-- Root for React app -->
+    <div id="root"><div class="min-h-screen flex flex-col relative" style="background-color: rgb(9, 9, 15);"><div class="pointer-events-none fixed inset-0 z-30 transition-opacity duration-300" style="background: radial-gradient(600px at 0px 0px, rgba(85, 221, 255, 0.04), transparent 40%);"></div><div class="pointer-events-none fixed inset-0 z-[60] opacity-[0.025]" style="background-image: url(&quot;data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E&quot;);"></div><header class="fixed top-0 left-0 right-0 z-50 transition-transform duration-300 translate-y-0"><div class="max-w-5xl mx-auto mt-4 px-4"><nav class="backdrop-blur-md border-b rounded-full px-6 py-3 shadow-2xl" style="background-color: rgba(9, 9, 15, 0.75); border-color: rgba(255, 255, 255, 0.08);"><div class="flex justify-between items-center"><a class="text-lg font-bold text-white hover:text-cyan-400 transition-colors relative group" href="/" data-discover="true" style="font-family: &quot;DM Sans&quot;, sans-serif;"><span class="relative z-10">Suneet Malhotra</span><span class="absolute bottom-0 left-0 w-0 h-0.5 bg-cyan-400 group-hover:w-full transition-all duration-300"></span></a><div class="hidden md:flex items-center gap-6"><a class="text-sm font-medium transition-colors relative group text-gray-300 hover:text-white" href="/" data-discover="true" style="font-family: &quot;DM Sans&quot;, sans-serif;"><span class="relative z-10">Home</span><span class="absolute bottom-0 left-0 h-0.5 transition-all duration-300 w-0 bg-white group-hover:w-full"></span></a><a class="text-sm font-medium transition-colors relative group text-gray-300 hover:text-white" href="/about" data-discover="true" style="font-family: &quot;DM Sans&quot;, sans-serif;"><span class="relative z-10">About</span><span class="absolute bottom-0 left-0 h-0.5 transition-all duration-300 w-0 bg-white group-hover:w-full"></span></a><a aria-current="page" class="text-sm font-medium transition-colors relative group text-cyan-400" href="/tools" data-discover="true" style="font-family: &quot;DM Sans&quot;, sans-serif;"><span class="relative z-10">Projects</span><span class="absolute bottom-0 left-0 h-0.5 transition-all duration-300 w-full bg-cyan-400"></span></a><a class="text-sm font-medium transition-colors relative group text-gray-300 hover:text-white" href="/blog" data-discover="true" style="font-family: &quot;DM Sans&quot;, sans-serif;"><span class="relative z-10">Blog</span><span class="absolute bottom-0 left-0 h-0.5 transition-all duration-300 w-0 bg-white group-hover:w-full"></span></a><button class="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors duration-200" style="background-color: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: rgb(122, 122, 154); font-family: &quot;DM Sans&quot;, sans-serif;"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg><kbd class="font-mono text-[10px]">⌘K</kbd></button><a class="px-5 py-2 text-sm font-medium rounded-full transition-all duration-300 hover:text-white" href="/contact" data-discover="true" style="background-color: transparent; color: rgb(122, 122, 154); border: 1px solid rgba(255, 255, 255, 0.12); font-family: &quot;DM Sans&quot;, sans-serif;">Contact</a><a class="px-5 py-2 text-sm font-semibold rounded-full transition-all duration-300" href="/tools/qa-field-manual" data-discover="true" style="background-color: rgb(85, 221, 255); color: rgb(9, 9, 15); font-family: &quot;DM Sans&quot;, sans-serif;">Free Book</a></div><button class="md:hidden text-white p-2 hover:text-cyan-400 transition-colors" aria-label="Toggle menu"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg></button></div></nav></div></header><main class="flex-grow pt-24" role="main"><style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+        @keyframes bookFadeUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .book-fade-up { animation: bookFadeUp 0.65s ease-out forwards; opacity: 0; }
+      </style><main class="pt-20 pb-24 px-4 sm:px-6 min-h-screen" style="background-color: rgb(9, 9, 15); font-family: &quot;DM Sans&quot;, sans-serif;"><div class="max-w-4xl mx-auto"><a class="inline-flex items-center gap-2 mb-12 text-sm font-medium transition-colors" href="/tools" data-discover="true" style="color: rgb(122, 122, 154);">← Back to Projects</a><header class="mb-16"><p class="text-xs font-semibold uppercase tracking-[0.15em] mb-4 book-fade-up" style="color: rgb(85, 221, 255);">Free book · 24 chapters</p><h1 class="text-4xl md:text-6xl mb-6 book-fade-up" style="font-family: &quot;DM Serif Display&quot;, Georgia, serif; color: rgb(232, 232, 240); line-height: 1.08; animation-delay: 80ms;">The QA Field Manual to Language Models</h1><p class="text-lg md:text-xl leading-relaxed mb-4 book-fade-up" style="color: rgb(232, 232, 240); opacity: 0.85; animation-delay: 160ms;">Start at “what is AI, really?” Finish with a small language model you built yourself — one that reads a failing Playwright test and proposes a fix you can actually run.</p><p class="text-base leading-relaxed mb-10 book-fade-up" style="color: rgb(122, 122, 154); animation-delay: 200ms;">Written for test engineers and new grads moving into AI. No cloud account, no API key, no permission from anyone — CI logs are proprietary, so everything in this book runs on your own machine.</p><div class="flex flex-wrap gap-3 book-fade-up" style="animation-delay: 260ms;"><a href="/book/" class="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-lg text-sm font-semibold transition-all duration-300" style="background-color: rgb(85, 221, 255); color: rgb(9, 9, 15);">Read the book — free</a><a href="/book/qa-field-manual.pdf" download="" class="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-lg text-sm font-semibold transition-all duration-300" style="background-color: transparent; color: rgb(232, 232, 240); border: 1px solid rgba(255, 255, 255, 0.07);">Download the PDF</a></div><p class="text-xs mt-4 leading-relaxed" style="color: rgb(122, 122, 154);">Free, and it stays free. No account, no email, nothing to install — it opens instantly in the browser you already have. Prefer paper or an iPad? The PDF is 50 pages, 1.6 MB.</p></header><section class="mb-16"><h2 class="text-3xl mb-8" style="font-family: &quot;DM Serif Display&quot;, Georgia, serif; color: rgb(232, 232, 240);">What’s inside</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-5"><div class="rounded-xl p-6" style="background-color: rgb(20, 20, 31); border: 1px solid rgba(255, 255, 255, 0.07);"><p class="text-xs font-semibold uppercase tracking-[0.12em] mb-2" style="color: rgb(123, 108, 255);">Part I</p><h3 class="text-lg font-semibold mb-4" style="color: rgb(232, 232, 240);">How language models actually work</h3><ul class="space-y-2"><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">What is AI, really?</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Tokens: how machines read a CI log</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Embeddings: meaning as geometry</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Before transformers</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Anatomy of a transformer</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Attention, up close</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Sampling &amp; temperature</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">How models learn</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Pretraining, at toy scale</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Teaching behavior &amp; preference</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Sizing it up</li></ul></div><div class="rounded-xl p-6" style="background-color: rgb(20, 20, 31); border: 1px solid rgba(255, 255, 255, 0.07);"><p class="text-xs font-semibold uppercase tracking-[0.12em] mb-2" style="color: rgb(123, 108, 255);">Part II</p><h3 class="text-lg font-semibold mb-4" style="color: rgb(232, 232, 240);">Now make it QA</h3><ul class="space-y-2"><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">The red pipeline</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">What is a QA model?</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Training data: your own failures</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Grounding, and knowing when to shut up</li></ul></div><div class="rounded-xl p-6" style="background-color: rgb(20, 20, 31); border: 1px solid rgba(255, 255, 255, 0.07);"><p class="text-xs font-semibold uppercase tracking-[0.12em] mb-2" style="color: rgb(123, 108, 255);">Part III</p><h3 class="text-lg font-semibold mb-4" style="color: rgb(232, 232, 240);">Build your model</h3><ul class="space-y-2"><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Project setup</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Fine-tuning data</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Supervised fine-tuning</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Chat with your model</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Write, run and repair a real test</li><li class="text-sm leading-snug" style="color: rgb(122, 122, 154);">Rolling it out to your team</li></ul></div></div></section><section class="mb-16"><h2 class="text-3xl mb-6" style="font-family: &quot;DM Serif Display&quot;, Georgia, serif; color: rgb(232, 232, 240);">Nothing here is invented for the sake of a tidy example</h2><div class="rounded-xl p-7 space-y-4" style="background-color: rgb(15, 15, 26); border: 1px solid rgba(255, 255, 255, 0.07);"><p class="text-base leading-relaxed" style="color: rgb(232, 232, 240); opacity: 0.85;">The loss curves in the training chapters come from a real MLX LoRA run (<code style="color: rgb(85, 221, 255);">Qwen2.5-0.5B-Instruct-4bit</code>, 100 iterations, 70 supervised examples; train loss 3.15 → 0.09, validation loss 0.19).</p><p class="text-base leading-relaxed" style="color: rgb(232, 232, 240); opacity: 0.85;">The failures you study were harvested from <strong style="color: rgb(232, 232, 240);">260 real test executions</strong> against two live sites — 56 observed failures reduced to 17 distinct root-cause artifacts across selector ambiguity, element-not-visible, assertion mismatch and timeout.</p><p class="text-sm leading-relaxed" style="color: rgb(122, 122, 154);">Where a result has not yet been validated against human-labelled gold data, the book says so on the page. It is a demonstration of a working pipeline, not a published accuracy claim.</p></div></section><section class="mb-16"><h2 class="text-3xl mb-6" style="font-family: &quot;DM Serif Display&quot;, Georgia, serif; color: rgb(232, 232, 240);">How do you want to read it?</h2><p class="text-base mb-8 leading-relaxed" style="color: rgb(122, 122, 154);">Same book in every case — 24 chapters, nothing held back, nothing behind an email form. Pick whichever suits where you actually read.</p><div class="space-y-4"><div class="rounded-xl p-6 flex flex-col sm:flex-row sm:items-center gap-4" style="background-color: rgb(20, 20, 31); border: 1px solid rgba(85, 221, 255, 0.25);"><div class="flex-1"><div class="flex items-center gap-2 mb-1"><h3 class="text-base font-semibold" style="color: rgb(232, 232, 240);">I just want to start reading</h3><span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style="background-color: rgb(85, 221, 255); color: rgb(9, 9, 15);">Start here</span></div><p class="text-sm mb-3" style="color: rgb(122, 122, 154);">Opens in the tab you’re already in. Mac, Windows, iPad, phone — it doesn’t matter. Visit once and it keeps working with no internet; on Android you can add it to your home screen like a real app.</p><p class="text-xs font-mono" style="color: rgb(123, 108, 255);">Web page · 151 KB · nothing to install</p></div><a href="/book/" class="px-6 py-3 rounded-lg text-sm font-semibold text-center whitespace-nowrap" style="background-color: rgb(85, 221, 255); color: rgb(9, 9, 15);">Open the book</a></div><div class="rounded-xl p-6 flex flex-col sm:flex-row sm:items-center gap-4" style="background-color: rgb(20, 20, 31); border: 1px solid rgba(255, 255, 255, 0.07);"><div class="flex-1"><h3 class="text-base font-semibold mb-1" style="color: rgb(232, 232, 240);">I read on an iPad, a Kindle, or paper</h3><p class="text-sm mb-3" style="color: rgb(122, 122, 154);">The whole book laid out for reading away from a browser. Highlight it, annotate it, print it, take it on a plane. Opens in Preview, Books, Acrobat — anything.</p><p class="text-xs font-mono" style="color: rgb(123, 108, 255);">PDF · 1.6 MB · 50 pages</p></div><a href="/book/qa-field-manual.pdf" download="" class="px-6 py-3 rounded-lg text-sm font-semibold text-center whitespace-nowrap" style="background-color: transparent; color: rgb(232, 232, 240); border: 1px solid rgba(255, 255, 255, 0.07);">Download PDF</a></div><div class="rounded-xl p-6 flex flex-col sm:flex-row sm:items-center gap-4" style="background-color: rgb(20, 20, 31); border: 1px solid rgba(255, 255, 255, 0.07);"><div class="flex-1"><h3 class="text-base font-semibold mb-1" style="color: rgb(232, 232, 240);">I want to send it to my team</h3><p class="text-sm mb-3" style="color: rgb(122, 122, 154);">The entire interactive book as one file you own. AirDrop it, email it, drop it in Slack. Whoever gets it double-clicks and it opens — no internet, no install, any operating system, forever.</p><p class="text-xs font-mono" style="color: rgb(123, 108, 255);">One HTML file · 151 KB · double-click to open</p></div><a href="https://github.com/SuneetMalhotra/qa-field-manual/releases/download/v1.0.0/QA-Field-Manual-offline.html" class="px-6 py-3 rounded-lg text-sm font-semibold text-center whitespace-nowrap" style="background-color: transparent; color: rgb(232, 232, 240); border: 1px solid rgba(255, 255, 255, 0.07);">Get the file</a></div><div id="mac" class="rounded-xl p-6 scroll-mt-24 flex flex-col sm:flex-row sm:items-center gap-4" style="background-color: transparent; border: 1px dashed rgba(255, 255, 255, 0.07);"><div class="flex-1"><div class="flex items-center gap-2 mb-1 flex-wrap"><h3 class="text-base font-semibold" style="color: rgb(232, 232, 240);">I’d rather have a real Mac app</h3><span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style="border: 1px solid rgba(255, 255, 255, 0.07); color: rgb(122, 122, 154);">By request</span></div><p class="text-sm mb-3" style="color: rgb(122, 122, 154);">A native window with a menu bar, keyboard shortcuts for turning chapters, and print-to-PDF. It’s built and it works — but putting it up as a public download properly means Apple notarisation, so I’m checking whether people actually want it first. Email me and I’ll send you a copy. Enough requests and it becomes a one-click download here.</p><p class="text-xs font-mono" style="color: rgb(122, 122, 154);">macOS app · Apple Silicon · sent by email</p></div><div class="flex flex-col items-stretch sm:items-end gap-2"><a class="px-6 py-3 rounded-lg text-sm font-semibold text-center whitespace-nowrap" href="/contact?subject=QA%20Field%20Manual%20%E2%80%94%20Mac%20app&amp;message=I'd%20like%20the%20Mac%20app%20version%20of%20The%20QA%20Field%20Manual.%0A%0AMy%20Mac%20is%3A%20(Apple%20Silicon%20%2F%20Intel%20%E2%80%94%20check%20About%20This%20Mac)" data-discover="true" style="background-color: transparent; color: rgb(232, 232, 240); border: 1px solid rgba(255, 255, 255, 0.07);">Request the Mac app</a><span class="text-[11px] text-center sm:text-right" style="color: rgb(122, 122, 154);">or email suneetmalhotra2002<span>@</span>gmail.com</span></div></div></div></section><section class="rounded-2xl p-10 text-center" style="background-color: rgb(15, 15, 26); border: 1px solid rgba(255, 255, 255, 0.07);"><h2 class="text-3xl mb-4" style="font-family: &quot;DM Serif Display&quot;, Georgia, serif; color: rgb(232, 232, 240);">Start reading</h2><p class="text-base mb-8 max-w-xl mx-auto leading-relaxed" style="color: rgb(122, 122, 154);">Twenty-four chapters, from first principles to a green test re-run. Free, and it stays free.</p><div class="flex flex-wrap gap-3 justify-center"><a href="/book/" class="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-lg text-sm font-semibold transition-all duration-300" style="background-color: rgb(85, 221, 255); color: rgb(9, 9, 15);">Read the book — free</a><a href="https://github.com/SuneetMalhotra/qa-field-manual" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-lg text-sm font-semibold transition-all duration-300" style="background-color: transparent; color: rgb(232, 232, 240); border: 1px solid rgba(255, 255, 255, 0.07);">View on GitHub</a></div></section></div></main></main><footer class="border-t py-16 px-6" style="background-color: rgb(15, 15, 26); border-color: rgba(255, 255, 255, 0.07);"><div class="max-w-7xl mx-auto"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12"><div><div class="text-xl font-bold text-white mb-4" style="font-family: &quot;DM Sans&quot;, sans-serif;">Suneet Malhotra</div><p class="text-sm leading-relaxed" style="color: rgb(122, 122, 154);">AI-Driven Quality Engineering Leader with 20+ years scaling distributed systems and pioneering automation-first cultures.</p></div><div><h3 class="text-xs font-semibold text-white mb-4 uppercase tracking-[0.12em]">Projects</h3><ul class="space-y-3"><li><a href="https://github.com/SuneetMalhotra" target="_blank" rel="noopener noreferrer" class="text-sm transition-colors hover:text-cyan-400" style="color: rgb(122, 122, 154);">Automated Trading System</a></li><li><a href="https://github.com/SuneetMalhotra" target="_blank" rel="noopener noreferrer" class="text-sm transition-colors hover:text-cyan-400" style="color: rgb(122, 122, 154);">Personal Health Analytics</a></li><li><a href="https://github.com/SuneetMalhotra" target="_blank" rel="noopener noreferrer" class="text-sm transition-colors hover:text-cyan-400" style="color: rgb(122, 122, 154);">AI Content Engine</a></li><li><a href="https://github.com/SuneetMalhotra" target="_blank" rel="noopener noreferrer" class="text-sm transition-colors hover:text-cyan-400" style="color: rgb(122, 122, 154);">Food Intelligence</a></li><li><a href="https://flowstatedemo.netlify.app/" target="_blank" rel="noopener noreferrer" class="text-sm transition-colors hover:text-cyan-400" style="color: rgb(122, 122, 154);">Flowstate</a></li><li><a class="text-sm transition-colors hover:text-cyan-400" href="/tools" data-discover="true" style="color: rgb(122, 122, 154);">View All</a></li></ul></div><div><h3 class="text-xs font-semibold text-white mb-4 uppercase tracking-[0.12em]">Connect</h3><ul class="space-y-3"><li><a href="https://www.linkedin.com/in/suneet-m/" target="_blank" rel="noopener noreferrer" class="text-sm transition-colors hover:text-cyan-400" style="color: rgb(122, 122, 154);">LinkedIn</a></li><li><a href="https://github.com/SuneetMalhotra" target="_blank" rel="noopener noreferrer" class="text-sm transition-colors hover:text-cyan-400" style="color: rgb(122, 122, 154);">GitHub</a></li><li><a href="https://x.com/SuneetMalhotra" target="_blank" rel="noopener noreferrer" class="text-sm transition-colors hover:text-cyan-400" style="color: rgb(122, 122, 154);">X (Twitter)</a></li><li><a href="/cdn-cgi/l/email-protection#8efdfbe0ebebfae3efe2e6e1fafcefbcbebebccee9e3efe7e2a0ede1e3" target="_blank" rel="noopener noreferrer" class="text-sm transition-colors hover:text-cyan-400" style="color: rgb(122, 122, 154);">Email</a></li></ul></div><div><h3 class="text-xs font-semibold text-white mb-4 uppercase tracking-[0.12em]">Status</h3><div class="flex items-center gap-3 mb-4"><div class="relative"><div class="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></div><div class="absolute inset-0 w-2.5 h-2.5 bg-green-500 rounded-full animate-ping opacity-75"></div></div><span class="text-sm font-medium" style="color: rgb(232, 232, 240);">Open to Networking</span></div><p class="text-xs leading-relaxed" style="color: rgb(122, 122, 154);">Available for industry discussions and technical collaboration.</p></div></div><div class="border-t pt-8 space-y-4" style="border-color: rgba(255, 255, 255, 0.07);"><div class="text-xs text-center max-w-3xl mx-auto leading-relaxed" style="color: rgb(122, 122, 154);"><strong style="color: rgb(154, 154, 176);">Disclaimer:</strong> This website and its tools are personal portfolio projects for educational and research purposes only.</div><div class="flex flex-col sm:flex-row justify-between items-center gap-4"><div class="text-sm" style="color: rgb(122, 122, 154);">© 2026 Suneet Malhotra</div><div class="flex items-center gap-4"><div class="inline-flex items-center gap-2 text-xs"><svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg><span class="text-sm font-medium text-gray-300"><span class="text-cyan-400 font-bold">1</span><span class="text-gray-400 ml-1">total views</span></span></div><div class="flex items-center gap-2 px-3 py-1.5 rounded-full" style="background-color: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);"><span class="text-xs" style="color: rgb(122, 122, 154);">Built with</span><span class="text-xs font-semibold" style="color: rgb(85, 221, 255);">Claude Code</span><span class="text-xs" style="color: rgb(122, 122, 154);">+</span><span class="text-xs font-semibold" style="color: rgb(123, 108, 255);">Cloudflare</span></div></div></div></div></div></footer></div></div>
+
+    <!-- View tracking is now handled by Supabase via Netlify Functions -->
+    <!-- GoatCounter script removed - using custom Supabase implementation -->
+    
+    <!-- Scripts: prefer local Vite entry in dev/build, importmap allows standalone preview -->
+    <!-- Force HTTPS redirect (Critical for Safari security) -->
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+      // Force HTTPS redirect if on HTTP (except localhost for development)
+      if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        window.location.replace('https:' + window.location.href.substring(5));
+      }
+    </script>
+    <!-- Handle GitHub Pages redirect BEFORE React loads -->
+    <script>
+      // This MUST run before React/React Router initializes
+      (function() {
+        var path = window.location.pathname;
+        var search = window.location.search;
+        
+        // Handle /?/path format from 404.html redirect
+        if (path.includes('/?/')) {
+          var cleanPath = '/' + path.split('/?/')[1].replace(/~and~/g, '&');
+          window.history.replaceState(null, '', cleanPath);
+        }
+        // Handle ?/path in search params
+        else if (search && search.startsWith('?/')) {
+          var cleanPath = '/' + search.substring(2).split('&')[0].replace(/~and~/g, '&');
+          window.history.replaceState(null, '', cleanPath);
+        }
+      })();
+    </script>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+
+
+
+</body></html>

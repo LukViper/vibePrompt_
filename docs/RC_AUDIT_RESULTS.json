@@ -1,0 +1,842 @@
+{
+  "generated_at": "2026-11-10T23:27:04.968864+00:00",
+  "summary": {
+    "total_checks": 82,
+    "passed": 80,
+    "failed": 2,
+    "failures_by_severity": {
+      "medium": 2
+    },
+    "pytest": {
+      "exit_code": 0,
+      "passed": 173,
+      "failed": 0,
+      "tail": ".............................                                            [100%]\n=============================== warnings summary ===============================\n.venv/lib64/python3.14/site-packages/fastapi/testclient.py:1\n  /home/luk_viper/NLP/backend/.venv/lib64/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.\n    from starlette.testclient import TestClient as TestClient  # noqa\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n173 passed, 1 warning in 7.76s"
+    },
+    "production_ready_claim": true,
+    "reason": "No release blockers in this audit run",
+    "remediation_note": "Prior blockers (ownership gated on free tier, insecure prod defaults, empty API_SECRET in production) were remediated; this run verifies the fixes."
+  },
+  "results": [
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity: conversation persisted messages",
+      "passed": true,
+      "severity": "info",
+      "expected": ">=4 messages",
+      "actual": "4",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity: implementation_ready after seeded context",
+      "passed": true,
+      "severity": "info",
+      "expected": "implementation_ready=True",
+      "actual": "{'ready': True, 'impl': True, 'score': 100, 'missing': [], 'conflicts': []}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity: task classification is domain-aware",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "backend_service",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7cursor: prompt compiles and is not blocked",
+      "passed": true,
+      "severity": "info",
+      "expected": "blocked=False with non-empty prompt",
+      "actual": "{'blocked': False, 'reasons': [], 'quality': {'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}, 'skills': ['technical_architecture', 'prompt_engineering', 'agent_engineering', 'project_planning']}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7cursor: agent-specific shape present",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "# Cursor Agent Task: WinLog-Investigator\n\n## Intended task\nImplement EVTX ingest endpoint\n\n## Cursor workflow\n1. **Inspect the repository first** \u2014 list relevant directories, locate existing modules t",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7cursor: quality gate attached",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7cursor: skills selected (book-informed path)",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'technical_architecture': 'domain_hint:backend_service', 'prompt_engineering': 'domain_hint:backend_service', 'agent_engineering': 'domain_hint:backend_service', 'project_planning': 'domain_hint:backend_service'}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7cursor: rejected tech not on stack line",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "**tech stack:** python, fastapi, sqlite",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7antigravity: prompt compiles and is not blocked",
+      "passed": true,
+      "severity": "info",
+      "expected": "blocked=False with non-empty prompt",
+      "actual": "{'blocked': False, 'reasons': [], 'quality': {'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}, 'skills': ['technical_architecture', 'prompt_engineering', 'agent_engineering', 'project_planning']}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7antigravity: agent-specific shape present",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "# Antigravity Agent Task: WinLog-Investigator\n\n## Intended task\nImplement EVTX ingest endpoint\n\n## Project understanding (read first)\nTreat the structured context below as project truth. Do not restar",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7antigravity: quality gate attached",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7antigravity: skills selected (book-informed path)",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'technical_architecture': 'domain_hint:backend_service', 'prompt_engineering': 'domain_hint:backend_service', 'agent_engineering': 'domain_hint:backend_service', 'project_planning': 'domain_hint:backend_service'}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7antigravity: rejected tech not on stack line",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "- locate modules matching the tech stack and architecture notes before creating new packages.",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7codex: prompt compiles and is not blocked",
+      "passed": true,
+      "severity": "info",
+      "expected": "blocked=False with non-empty prompt",
+      "actual": "{'blocked': False, 'reasons': [], 'quality': {'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}, 'skills': ['technical_architecture', 'prompt_engineering', 'agent_engineering', 'project_planning']}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7codex: agent-specific shape present",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "# Codex Task: WinLog-Investigator\n\n## Goal\nImplement EVTX ingest endpoint\n\n## Repository context\nUse the structured project context below as authoritative. Inspect the repository for matching modules ",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7codex: quality gate attached",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7codex: skills selected (book-informed path)",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'technical_architecture': 'domain_hint:backend_service', 'prompt_engineering': 'domain_hint:backend_service', 'agent_engineering': 'domain_hint:backend_service', 'project_planning': 'domain_hint:backend_service'}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "cybersecurity\u00d7codex: rejected tech not on stack line",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "**tech stack:** python, fastapi, sqlite",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp: conversation persisted messages",
+      "passed": true,
+      "severity": "info",
+      "expected": ">=4 messages",
+      "actual": "4",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp: implementation_ready after seeded context",
+      "passed": true,
+      "severity": "info",
+      "expected": "implementation_ready=True",
+      "actual": "{'ready': True, 'impl': True, 'score': 100, 'missing': [], 'conflicts': []}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp: task classification is domain-aware",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "nlp_application",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7cursor: prompt compiles and is not blocked",
+      "passed": true,
+      "severity": "info",
+      "expected": "blocked=False with non-empty prompt",
+      "actual": "{'blocked': False, 'reasons': [], 'quality': {'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}, 'skills': ['prompt_engineering', 'agent_engineering', 'technical_architecture', 'prompt_evaluator']}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7cursor: agent-specific shape present",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "# Cursor Agent Task: TicketSense-NLP\n\n## Intended task\nImplement /classify endpoint\n\n## Cursor workflow\n1. **Inspect the repository first** \u2014 list relevant directories, locate existing modules that al",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7cursor: quality gate attached",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7cursor: skills selected (book-informed path)",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'prompt_engineering': 'domain_hint:nlp_application', 'agent_engineering': 'domain_hint:nlp_application', 'technical_architecture': 'domain_hint:nlp_application', 'prompt_evaluator': 'domain_hint:nlp_application'}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7cursor: rejected tech not on stack line",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "**tech stack:** python, fastapi, sqlite",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7antigravity: prompt compiles and is not blocked",
+      "passed": true,
+      "severity": "info",
+      "expected": "blocked=False with non-empty prompt",
+      "actual": "{'blocked': False, 'reasons': [], 'quality': {'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}, 'skills': ['prompt_engineering', 'agent_engineering', 'technical_architecture', 'prompt_evaluator']}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7antigravity: agent-specific shape present",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "# Antigravity Agent Task: TicketSense-NLP\n\n## Intended task\nImplement /classify endpoint\n\n## Project understanding (read first)\nTreat the structured context below as project truth. Do not restart prod",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7antigravity: quality gate attached",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7antigravity: skills selected (book-informed path)",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'prompt_engineering': 'domain_hint:nlp_application', 'agent_engineering': 'domain_hint:nlp_application', 'technical_architecture': 'domain_hint:nlp_application', 'prompt_evaluator': 'domain_hint:nlp_application'}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7antigravity: rejected tech not on stack line",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "- locate modules matching the tech stack and architecture notes before creating new packages.",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7codex: prompt compiles and is not blocked",
+      "passed": true,
+      "severity": "info",
+      "expected": "blocked=False with non-empty prompt",
+      "actual": "{'blocked': False, 'reasons': [], 'quality': {'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}, 'skills': ['prompt_engineering', 'agent_engineering', 'technical_architecture', 'prompt_evaluator']}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7codex: agent-specific shape present",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "# Codex Task: TicketSense-NLP\n\n## Goal\nImplement /classify endpoint\n\n## Repository context\nUse the structured project context below as authoritative. Inspect the repository for matching modules before",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7codex: quality gate attached",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7codex: skills selected (book-informed path)",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'prompt_engineering': 'domain_hint:nlp_application', 'agent_engineering': 'domain_hint:nlp_application', 'technical_architecture': 'domain_hint:nlp_application', 'prompt_evaluator': 'domain_hint:nlp_application'}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "nlp\u00d7codex: rejected tech not on stack line",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "**tech stack:** python, fastapi, sqlite",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas: conversation persisted messages",
+      "passed": true,
+      "severity": "info",
+      "expected": ">=4 messages",
+      "actual": "4",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas: implementation_ready after seeded context",
+      "passed": true,
+      "severity": "info",
+      "expected": "implementation_ready=True",
+      "actual": "{'ready': True, 'impl': True, 'score': 100, 'missing': [], 'conflicts': []}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas: task classification is domain-aware",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "security_platform",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7cursor: prompt compiles and is not blocked",
+      "passed": true,
+      "severity": "info",
+      "expected": "blocked=False with non-empty prompt",
+      "actual": "{'blocked': False, 'reasons': [], 'quality': {'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}, 'skills': ['technical_architecture', 'project_planning', 'prompt_engineering', 'grill']}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7cursor: agent-specific shape present",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "# Cursor Agent Task: TeamNotes-SaaS\n\n## Intended task\nImplement notes CRUD with tenant checks\n\n## Cursor workflow\n1. **Inspect the repository first** \u2014 list relevant directories, locate existing modul",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7cursor: quality gate attached",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7cursor: skills selected (book-informed path)",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'technical_architecture': 'domain_hint:security_platform', 'project_planning': 'domain_hint:security_platform', 'prompt_engineering': 'domain_hint:security_platform', 'grill': 'domain_hint:security_platform'}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7cursor: rejected tech not on stack line",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "**tech stack:** node.js, express, postgresql, react",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7antigravity: prompt compiles and is not blocked",
+      "passed": true,
+      "severity": "info",
+      "expected": "blocked=False with non-empty prompt",
+      "actual": "{'blocked': False, 'reasons': [], 'quality': {'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}, 'skills': ['technical_architecture', 'project_planning', 'prompt_engineering', 'grill']}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7antigravity: agent-specific shape present",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "# Antigravity Agent Task: TeamNotes-SaaS\n\n## Intended task\nImplement notes CRUD with tenant checks\n\n## Project understanding (read first)\nTreat the structured context below as project truth. Do not re",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7antigravity: quality gate attached",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7antigravity: skills selected (book-informed path)",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'technical_architecture': 'domain_hint:security_platform', 'project_planning': 'domain_hint:security_platform', 'prompt_engineering': 'domain_hint:security_platform', 'grill': 'domain_hint:security_platform'}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7antigravity: rejected tech not on stack line",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "- locate modules matching the tech stack and architecture notes before creating new packages.",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7codex: prompt compiles and is not blocked",
+      "passed": true,
+      "severity": "info",
+      "expected": "blocked=False with non-empty prompt",
+      "actual": "{'blocked': False, 'reasons': [], 'quality': {'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}, 'skills': ['technical_architecture', 'project_planning', 'prompt_engineering', 'grill']}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7codex: agent-specific shape present",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "# Codex Task: TeamNotes-SaaS\n\n## Goal\nImplement notes CRUD with tenant checks\n\n## Repository context\nUse the structured project context below as authoritative. Inspect the repository for matching modu",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7codex: quality gate attached",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'passed': True, 'score_pct': 100, 'issues': [], 'checks': {'completeness': True, 'technical_consistency': True, 'context_accuracy': True, 'requirement_coverage': True, 'implementation_clarity': True, 'testability': True, 'scope_boundaries': True, 'agent_compatibility': True, 'no_invented_details': True, 'no_redundancy': True, 'no_contradictions': True}}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7codex: skills selected (book-informed path)",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'technical_architecture': 'domain_hint:security_platform', 'project_planning': 'domain_hint:security_platform', 'prompt_engineering': 'domain_hint:security_platform', 'grill': 'domain_hint:security_platform'}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "1-2. E2E workflow",
+      "check": "saas\u00d7codex: rejected tech not on stack line",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "**tech stack:** node.js, express, postgresql, react",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "3. Security",
+      "check": "Production rejects packaged JWT development defaults",
+      "passed": true,
+      "severity": "info",
+      "expected": "validate_production_settings flags JWT_SECRET",
+      "actual": "['JWT_SECRET must be explicitly set to a strong non-development value in production']",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "3. Security",
+      "check": "Production requires non-empty API_SECRET at startup validation",
+      "passed": true,
+      "severity": "info",
+      "expected": "API_SECRET error in validate_production_settings",
+      "actual": "['API_SECRET is required in production and must be a non-empty shared secret']",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "3. Security",
+      "check": "Development allows empty API_SECRET (local convenience)",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "",
+      "repro": "",
+      "notes": "Acceptable limitation for local demos"
+    },
+    {
+      "area": "3. Security",
+      "check": "Production API rejects requests without X-API-Secret",
+      "passed": true,
+      "severity": "info",
+      "expected": "401 when header missing in production",
+      "actual": "True",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "3. Security",
+      "check": "Project isolation when FREE_TIER_ENABLED=false",
+      "passed": true,
+      "severity": "info",
+      "expected": "Cross-owner project access denied",
+      "actual": "user_b accessed project owned by user_a: False",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "3. Security",
+      "check": "Project isolation when FREE_TIER_ENABLED=true",
+      "passed": true,
+      "severity": "info",
+      "expected": "404 for cross-owner access",
+      "actual": "True",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "3. Security",
+      "check": "Conversation isolation across projects",
+      "passed": true,
+      "severity": "info",
+      "expected": "No cross-project message leakage",
+      "actual": "leaked=False",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "3. Security",
+      "check": "BYOK keys encrypt to non-plaintext ciphertext",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "3. Security",
+      "check": "Provider log extra payloads do not include api_key",
+      "passed": true,
+      "severity": "info",
+      "expected": "No api_key keys in logger extra= dicts",
+      "actual": "extra_blocks=4 api_key_in_extras=False",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "3. Security",
+      "check": "UserPublic excludes password_hash / api keys",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "['auth_provider', 'avatar_url', 'created_at', 'display_name', 'email', 'id']",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "4. Reliability",
+      "check": "Provider failure keeps structured memory (SQLite decision)",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "['Python', 'FastAPI', 'SQLite']",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "4. Reliability",
+      "check": "Provider failure surfaces limitations / offline path",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'limitations': ['Primary provider issue (unavailable): falling back to offline heuristics.', 'Offline heuristic review \u2014 findings are deterministic heuristics, not live model output.'], 'offline': True, 'reply': \"That makes sense. I can help you shape the idea, plan options, or run a Review when you want pushback. What's the main o\"}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "4. Reliability",
+      "check": "Handles rate_limit without crashing / wiping stack",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'limitations': ['Primary provider issue (rate_limit): falling back to offline heuristics.', 'Offline heuristic review \u2014 findings are deterministic heuristics, not live model output.'], 'offline': True}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "4. Reliability",
+      "check": "Handles timeout without crashing / wiping stack",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'limitations': ['Primary provider issue (timeout): falling back to offline heuristics.', 'Offline heuristic review \u2014 findings are deterministic heuristics, not live model output.'], 'offline': True}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "4. Reliability",
+      "check": "Handles invalid_api_key without crashing / wiping stack",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'limitations': ['Primary provider issue (auth): falling back to offline heuristics.', 'Offline heuristic review \u2014 findings are deterministic heuristics, not live model output.'], 'offline': True}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "4. Reliability",
+      "check": "DB construct/save failure leaves in-memory ProjectState intact",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "4. Reliability",
+      "check": "Concurrent chats do not cross-contaminate projects",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'a_obj': 'Help IR analysts investigate Windows Event Logs', 'b_obj': 'Classify support tickets with an NLP/LLM pipeline', 'am': 12, 'bm': 12, 'a_has_B': False, 'b_has_A': False}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "4. Reliability",
+      "check": "Memory/summary SQLite round-trip",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "{'has_summary': True, 'stack': ['Python', 'FastAPI', 'SQLite']}",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "4. Reliability",
+      "check": "Prompt compilation fails closed when incomplete",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "['Project objective is missing', 'Intended users are unspecified', 'No success criteria or functional requirements', 'Missing for implementation: Problem statement / objective', 'Missing for implementation: Target users']",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "5. Deployment",
+      "check": ".env.example documents core production settings",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "5. Deployment",
+      "check": "App configures CORSMiddleware from settings",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "5. Deployment",
+      "check": "HTTPS termination not implemented in-app (acceptable if reverse-proxied)",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "",
+      "repro": "",
+      "notes": "Acceptable limitation: rely on reverse proxy for HTTPS"
+    },
+    {
+      "area": "5. Deployment",
+      "check": "SQLite schema bootstrap + lightweight migrations exist",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "5. Deployment",
+      "check": "No automated backup/recovery tooling in repo",
+      "passed": false,
+      "severity": "medium",
+      "expected": "Documented backup/restore procedure for SQLite",
+      "actual": "No backup script or ops runbook found",
+      "repro": "Search repo for backup/restore docs or scripts",
+      "notes": "Finding: operators must supply SQLite backup themselves"
+    },
+    {
+      "area": "5. Deployment",
+      "check": "Startup lifespan initializes DB + skills",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "",
+      "repro": "",
+      "notes": ""
+    },
+    {
+      "area": "5. Deployment",
+      "check": "SQLite suitability: single-file local OK; multi-instance write contention risk",
+      "passed": true,
+      "severity": "info",
+      "expected": "",
+      "actual": "",
+      "repro": "",
+      "notes": "Acceptable for single-node MVP; not for horizontally scaled writers"
+    },
+    {
+      "area": "5. Deployment",
+      "check": "Container deployment artifacts present",
+      "passed": false,
+      "severity": "medium",
+      "expected": "Dockerfile or compose for reproducible deploys",
+      "actual": "has_docker=False",
+      "repro": "ls Dockerfile docker-compose.yml",
+      "notes": ""
+    },
+    {
+      "area": "Evidence",
+      "check": "Full pytest suite green",
+      "passed": true,
+      "severity": "info",
+      "expected": "0 failed",
+      "actual": "{'exit_code': 0, 'passed': 173, 'failed': 0, 'tail': '.............................                                            [100%]\\n=============================== warnings summary ===============================\\n.venv/lib64/python3.14/site-packages/fastapi/testclient.py:1\\n  /home/luk_viper/NLP/backend/.venv/lib64/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.\\n    from starlette.testclient import TestClient as TestClient  # noqa\\n\\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\\n173 passed, 1 warning in 7.76s'}",
+      "repro": "",
+      "notes": ""
+    }
+  ]
+}

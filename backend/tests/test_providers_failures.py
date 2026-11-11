@@ -13,6 +13,7 @@ from app.providers.base import (
     ProviderErrorKind,
     StatePatch,
 )
+from app.grill.modes import BehaviouralMode
 from app.providers.mock import MockProvider
 from tests.conftest import build_engine, make_finding
 
@@ -70,7 +71,11 @@ async def test_12_critic_timeout_continues_primary_only(repo, settings, project)
         critic=critic,
         offline=False,
     )
-    res = await engine.handle_message(project.id, "We will use microservices architecture.")
+    res = await engine.handle_message(
+        project.id,
+        "We will use microservices architecture.",
+        behavioural_mode=BehaviouralMode.GRILL_REVIEW,
+    )
     assert "critic" in call_log
     assert any("critic" in x.lower() for x in res.review_limitations)
     assert res.message.provenance.value == "primary_only"
@@ -99,7 +104,11 @@ async def test_12b_critic_rate_limit(repo, settings, project):
         ),
         offline=False,
     )
-    res = await engine.handle_message(project.id, "Deadline is this week for the full platform.")
+    res = await engine.handle_message(
+        project.id,
+        "Deadline is this week for the full platform.",
+        behavioural_mode=BehaviouralMode.GRILL_REVIEW,
+    )
     assert any("rate" in x.lower() or "critic" in x.lower() for x in res.review_limitations)
 
 

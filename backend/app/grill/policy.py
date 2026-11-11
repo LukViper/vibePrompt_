@@ -73,6 +73,12 @@ def detect_intent(message: str, project: ProjectState) -> MessageIntent:
     return MessageIntent.GENERAL
 
 
+_TRIVIAL_ACK_RE = re.compile(
+    r"^\s*(ok|okay|k|thanks|thank you|got it|cool|great|nice|👍)[\s!.]*$",
+    re.I,
+)
+
+
 def decide_review_policy(
     *,
     message: str,
@@ -80,13 +86,26 @@ def decide_review_policy(
     intensity: ReviewIntensity = "normal",
     critic_available: bool = True,
 ) -> PolicyDecision:
+    """
+    Decide *how* to review — not whether to talk.
+
+    Review intensity controls critic depth / two-model usage.
+    It must NOT suppress LLM responses for substantive messages.
+    """
     intent = detect_intent(message, project)
+    text = message.strip()
 
     if intent == MessageIntent.GREETING:
         return PolicyDecision(ReviewAction.CONVERSATION_ONLY, "greeting", intent)
 
-    if intent == MessageIntent.CLARIFICATION and intensity == "low":
-        return PolicyDecision(ReviewAction.CONVERSATION_ONLY, "trivial clarification", intent)
+    # Ultra-short acknowledgements only — never substantive questions
+    if (
+        intent == MessageIntent.CLARIFICATION
+        and _TRIVIAL_ACK_RE.match(text)
+        and not text.endswith("?")
+        and len(text) < 24
+    ):
+        return PolicyDecision(ReviewAction.CONVERSATION_ONLY, "trivial acknowledgement", intent)
 
     # Resolved/rejected findings without new evidence → don't regenerate
     if intent == MessageIntent.RESOLUTION and not _EVIDENCE_RE.search(message):
@@ -111,17 +130,25 @@ def decide_review_policy(
         MessageIntent.EVIDENCE,
     }
 
+    # High intensity: treat more intents as material for critic
     if intensity == "high":
-        material = material or intent in {MessageIntent.GENERAL, MessageIntent.QUESTION}
+        material = material or intent in {
+            MessageIntent.GENERAL,
+            MessageIntent.QUESTION,
+            MessageIntent.CLARIFICATION,
+        }
 
+    # Two-model critic only when material AND intensity is not low
     if material and critic_available and intensity != "low":
         action = ReviewAction.REASSESS if intent == MessageIntent.EVIDENCE else ReviewAction.TWO_MODEL
-        return PolicyDecision(action, f"material:{intent.value}", intent)
+        return PolicyDecision(action, f"material:{intent.value}:intensity={intensity}", intent)
 
-    if material or intensity != "low":
-        return PolicyDecision(ReviewAction.PRIMARY_ONLY, f"primary:{intent.value}", intent)
-
-    return PolicyDecision(ReviewAction.CONVERSATION_ONLY, "low intensity non-material", intent)
+    # All other substantive messages invoke the primary LLM (including low intensity)
+    return PolicyDecision(
+        ReviewAction.PRIMARY_ONLY,
+        f"primary:{intent.value}:intensity={intensity}",
+        intent,
+    )
 
 
 def findings_material(findings_count: int, severity_max: str | None) -> bool:

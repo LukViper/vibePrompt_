@@ -5,6 +5,7 @@ __pycache__/
 *.so
 .Python
 .venv/
+.venv-*/
 venv/
 env/
 .env
@@ -38,10 +39,23 @@ Thumbs.db
 # Secrets & local
 .env.local
 .env.*.local
+.env.production
+.env.staging
 credentials.json
 *.pem
 secrets/
+deploy/*.local.env
+
 
 # Evaluation outputs
 backend/tests/evaluation/results/
 *.log
+
+# Acquired book binaries (never commit copyrighted content)
+books/originals/
+books/processed/
+!books/metadata/
+!books/licenses/
+!books/extraction_logs/
+!books/RESOURCE_MANIFEST.json
+vendor/

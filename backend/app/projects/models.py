@@ -9,6 +9,10 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from app.grill.modes import BehaviouralMode
+from app.grill.notes import NoteRevision
+from app.grill.tech import TechnologySelection
+
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -37,6 +41,48 @@ class VerificationStatus(str, Enum):
     UNVERIFIED = "unverified"
     VERIFIED = "verified"
     INVALIDATED = "invalidated"
+
+
+class AssumptionClassification(str, Enum):
+    """Assumption challenger labels — never treat AI advice as user-approved."""
+
+    VERIFIED = "verified"
+    USER_PROVIDED = "user_provided"
+    REASONABLE_INFERENCE = "reasonable_inference"
+    UNVERIFIED = "unverified"
+    UNSUPPORTED = "unsupported"
+
+
+class DecisionStatus(str, Enum):
+    """Decision register statuses (brief §7). Legacy aliases normalized at apply-time."""
+
+    CONFIRMED = "confirmed"
+    PROVISIONALLY_ACCEPTED = "provisionally_accepted"
+    PROPOSED = "proposed"
+    UNVERIFIED = "unverified"
+    REJECTED = "rejected"
+    RESOLVED = "resolved"
+    SUPERSEDED = "superseded"
+
+
+_DECISION_STATUS_ALIASES = {
+    "accepted": DecisionStatus.CONFIRMED.value,
+    "provisional": DecisionStatus.PROVISIONALLY_ACCEPTED.value,
+    "provisionally accepted": DecisionStatus.PROVISIONALLY_ACCEPTED.value,
+}
+
+
+def normalize_decision_status(value: str | DecisionStatus | None) -> str:
+    if value is None:
+        return DecisionStatus.PROPOSED.value
+    raw = value.value if isinstance(value, DecisionStatus) else str(value)
+    key = raw.strip().lower().replace("-", "_")
+    if key in _DECISION_STATUS_ALIASES:
+        return _DECISION_STATUS_ALIASES[key]
+    try:
+        return DecisionStatus(key).value
+    except ValueError:
+        return DecisionStatus.PROPOSED.value
 
 
 class ReviewProvenance(str, Enum):
@@ -78,9 +124,21 @@ class Assumption(BaseModel):
     id: str = Field(default_factory=lambda: new_id("asm_"))
     statement: str
     status: VerificationStatus = VerificationStatus.UNVERIFIED
+    classification: AssumptionClassification = AssumptionClassification.UNVERIFIED
     evidence: str | None = None
+    source: str = "user"  # user | grill_mentor | inference — never treat mentor as user approval
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
+
+
+class DecisionRevision(BaseModel):
+    at: datetime = Field(default_factory=utcnow)
+    title: str
+    choice: str
+    status: str
+    rationale: str = ""
+    note: str = ""
+    actor: str = "system"  # user | system | grill_mentor
 
 
 class Decision(BaseModel):
@@ -89,7 +147,44 @@ class Decision(BaseModel):
     choice: str
     rationale: str = ""
     alternatives_considered: list[str] = Field(default_factory=list)
+    # Prefer DecisionStatus values; legacy "accepted"/"provisional" still load
+    status: str = DecisionStatus.CONFIRMED.value
+    source: str = "user"  # user | state_patch | grill_mentor | manual_context
+    history: list[DecisionRevision] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
+class RejectedApproach(BaseModel):
+    id: str = Field(default_factory=lambda: new_id("rej_"))
+    approach: str
+    reason: str = ""
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class ConversationSummary(BaseModel):
+    """Versioned rolling summary of older conversation turns (non-authoritative)."""
+
+    id: str = Field(default_factory=lambda: new_id("sum_"))
+    version: int = 1
+    text: str = ""
+    covered_through_message_id: str | None = None
+    covered_message_count: int = 0
+    source: str = "deterministic"  # deterministic | llm | failed_keep_previous
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
+class WorkingMemory(BaseModel):
+    """Ephemeral working set for near-term conversational continuity."""
+
+    current_intent: str | None = None
+    active_mode: str | None = None
+    unresolved_questions: list[str] = Field(default_factory=list)
+    current_task: str = ""
+    last_user_correction: str = ""
+    # Topics the user explicitly excluded from the current ask (survive compression)
+    turn_exclusions: list[str] = Field(default_factory=list)
     updated_at: datetime = Field(default_factory=utcnow)
 
 
@@ -191,7 +286,9 @@ class Message(BaseModel):
 class ProjectState(BaseModel):
     id: str = Field(default_factory=lambda: new_id("prj_"))
     name: str
+    description: str = ""
     objective: str = ""
+    problem_statement: str = ""
     intended_users: list[str] = Field(default_factory=list)
     success_criteria: list[str] = Field(default_factory=list)
     functional_requirements: list[Requirement] = Field(default_factory=list)
@@ -205,11 +302,25 @@ class ProjectState(BaseModel):
     findings: list[Finding] = Field(default_factory=list)
     messages: list[Message] = Field(default_factory=list)
     architecture_notes: str = ""
+    architecture_note_history: list[NoteRevision] = Field(default_factory=list)
     tech_stack: list[str] = Field(default_factory=list)
+    technology_selections: list[TechnologySelection] = Field(default_factory=list)
     data_model_notes: str = ""
     security_notes: str = ""
     testing_notes: str = ""
+    note_history: list[NoteRevision] = Field(default_factory=list)
     milestones: list[str] = Field(default_factory=list)
+    preferences: list[str] = Field(default_factory=list)
+    rejected_approaches: list[RejectedApproach] = Field(default_factory=list)
+    implementation_status: str = ""
+    completed_milestones: list[str] = Field(default_factory=list)
+    outstanding_tasks: list[str] = Field(default_factory=list)
+    known_risks: list[str] = Field(default_factory=list)
+    behavioural_mode: BehaviouralMode = BehaviouralMode.EXPLORE
+    # Long-term conversational memory (summary is non-authoritative vs structured fields)
+    conversation_summary: ConversationSummary | None = None
+    conversation_summary_history: list[ConversationSummary] = Field(default_factory=list)
+    working_memory: WorkingMemory = Field(default_factory=WorkingMemory)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 
@@ -254,11 +365,54 @@ class ProjectSummary(BaseModel):
 
 class ChatRequest(BaseModel):
     content: str = Field(min_length=1, max_length=16_000)
+    behavioural_mode: BehaviouralMode | None = None
+
+
+class ContextUpdateRequest(BaseModel):
+    """User corrections to stored project context (partial update)."""
+
+    name: str | None = None
+    description: str | None = None
+    objective: str | None = None
+    problem_statement: str | None = None
+    intended_users: list[str] | None = None
+    success_criteria: list[str] | None = None
+    scope_in: list[str] | None = None
+    scope_out: list[str] | None = None
+    tech_stack: list[str] | None = None
+    milestones: list[str] | None = None
+    preferences: list[str] | None = None
+    rejected_approaches: list[dict[str, str]] | None = None
+    architecture_notes: str | None = None
+    data_model_notes: str | None = None
+    security_notes: str | None = None
+    testing_notes: str | None = None
+    implementation_status: str | None = None
+    completed_milestones: list[str] | None = None
+    outstanding_tasks: list[str] | None = None
+    known_risks: list[str] | None = None
 
 
 class FindingUpdateRequest(BaseModel):
     status: FindingStatus
     note: str | None = None
+
+
+class DecisionUpdateRequest(BaseModel):
+    """Accept / reject / resolve a decision without silently rewriting its choice."""
+
+    status: DecisionStatus
+    note: str | None = None
+
+
+class ReadinessChecklistItem(BaseModel):
+    """One mandatory/conditional readiness check — never trust score alone."""
+
+    id: str
+    label: str
+    category: str = "mandatory"  # mandatory | conditional | quality
+    present: bool = False
+    detail: str = ""
 
 
 class ReadinessResult(BaseModel):
@@ -269,12 +423,48 @@ class ReadinessResult(BaseModel):
     missing_essentials: list[str] = Field(default_factory=list)
     accepted_risk_summaries: list[str] = Field(default_factory=list)
     unblock_actions: list[str] = Field(default_factory=list)
+    # Extended gate for implementation / agent-prompt generation
+    checklist: list[ReadinessChecklistItem] = Field(default_factory=list)
+    score_pct: int = 0
+    conflicts: list[str] = Field(default_factory=list)
+    implementation_ready: bool = False
 
 
 class SpecificationResult(BaseModel):
     readiness: ReadinessResult
     markdown: str
     structured: dict[str, Any]
+
+
+class AgentPromptRequest(BaseModel):
+    """Optional body for agent-prompt generation."""
+
+    task: str | None = None
+    agent: str = "cursor"  # cursor | antigravity | codex
+    force: bool = False
+    include_skills: bool = True
+    user_selected_skills: list[str] = Field(default_factory=list)
+    refine_notes: str | None = None
+
+
+class PromptQualityReport(BaseModel):
+    passed: bool = False
+    score_pct: int = 0
+    issues: list[str] = Field(default_factory=list)
+    checks: dict[str, bool] = Field(default_factory=dict)
+
+
+class AgentPromptResult(BaseModel):
+    readiness: ReadinessResult
+    prompt: str
+    blocked: bool = False
+    block_reasons: list[str] = Field(default_factory=list)
+    structured: dict[str, Any] = Field(default_factory=dict)
+    agent: str = "cursor"
+    skills_used: list[dict[str, Any]] = Field(default_factory=list)
+    skill_reasons: dict[str, str] = Field(default_factory=dict)
+    quality: PromptQualityReport | None = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 class ChatResponse(BaseModel):
@@ -286,3 +476,6 @@ class ChatResponse(BaseModel):
     provider_status: str | None = None
     provider_used: str | None = None
     offline_review: bool = False
+    funding_source: str | None = None
+    free_tier: Any | None = None
+    behavioural_mode: BehaviouralMode = BehaviouralMode.EXPLORE

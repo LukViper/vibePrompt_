@@ -1,0 +1,151 @@
+{
+  "generated_at": "2026-11-10T21:32:18.977644+00:00",
+  "policy": {
+    "no_paywall_bypass": true,
+    "no_drm_bypass": true,
+    "no_public_git_of_copyrighted_binaries": true,
+    "no_fabricated_downloads": true
+  },
+  "resources": [
+    {
+      "id": "prompt_engineering_lee_boonstra",
+      "title": "Prompt Engineering",
+      "author": "Lee Boonstra",
+      "url": "https://www.innopreneur.io/wp-content/uploads/2025/04/22365_3_Prompt-Engineering_v7-1.pdf",
+      "format": "pdf",
+      "license_note": "Verify Google / author distribution terms before commercial reuse; acquisition for local processing only.",
+      "acquired_at": "2026-11-10T21:31:01.724015+00:00",
+      "status": "acquired",
+      "attempts": [
+        {
+          "url": "https://www.innopreneur.io/wp-content/uploads/2025/04/22365_3_Prompt-Engineering_v7-1.pdf",
+          "http": 200,
+          "content_type": "application/pdf",
+          "final_url": "https://www.innopreneur.io/wp-content/uploads/2025/04/22365_3_Prompt-Engineering_v7-1.pdf",
+          "bytes": 6816989,
+          "saved": true
+        }
+      ],
+      "local_path": "books/originals/prompt_engineering_lee_boonstra.pdf",
+      "sha256": "720971199397bc6e15f190169bc245eeed9f561878fd91d3add3c2ac33a6859c",
+      "size_bytes": 6816989,
+      "source_url_used": "https://www.innopreneur.io/wp-content/uploads/2025/04/22365_3_Prompt-Engineering_v7-1.pdf",
+      "readable": true
+    },
+    {
+      "id": "ml_systems_harvard_edge",
+      "title": "Machine Learning Systems",
+      "author": "Harvard Edge / CS249r",
+      "url": "https://harvard-edge.github.io/cs249r_book_dev/Machine-Learning-Systems.pdf",
+      "format": "pdf",
+      "license_note": "CC BY-NC-ND 4.0 \u2014 no derivatives as redistributed skills without permission; local study only unless terms allow.",
+      "alt_urls": [
+        "https://harvard-edge.github.io/cs249r_book/Machine-Learning-Systems.pdf",
+        "https://raw.githubusercontent.com/harvard-edge/cs249r_book/main/README.md"
+      ],
+      "acquired_at": "2026-11-10T21:31:05.359063+00:00",
+      "status": "metadata_only",
+      "attempts": [
+        {
+          "url": "https://harvard-edge.github.io/cs249r_book_dev/Machine-Learning-Systems.pdf",
+          "error": "HTTP Error 404: Not Found"
+        },
+        {
+          "url": "https://harvard-edge.github.io/cs249r_book/Machine-Learning-Systems.pdf",
+          "error": "HTTP Error 404: Not Found"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/harvard-edge/cs249r_book/main/README.md",
+          "http": 200,
+          "content_type": "text/plain; charset=utf-8",
+          "final_url": "https://raw.githubusercontent.com/harvard-edge/cs249r_book/main/README.md",
+          "bytes": 100599,
+          "saved": true
+        }
+      ],
+      "local_path": "books/metadata/ml_systems_harvard_edge_repo_readme.md",
+      "sha256": "7b52c6f368fe7a2d4e21bebbdd8ee4ff894192349cce29e7e419f82a707a8fba",
+      "size_bytes": 100599,
+      "source_url_used": "https://raw.githubusercontent.com/harvard-edge/cs249r_book/main/README.md",
+      "note": "Repository README acquired; full PDF URL did not return a PDF body."
+    },
+    {
+      "id": "qa_field_manual_suneet_malhotra",
+      "title": "The QA Field Manual to Language Models",
+      "author": "Suneet Malhotra",
+      "format": "pdf",
+      "source_url": "https://suneetmalhotra.com/book/qa-field-manual.pdf",
+      "local_path": "books/originals/qa_field_manual_suneet_malhotra.pdf",
+      "sha256": "2979de15eb51f5ceae9f11dc5d706d2cdb8f3ed9f36a74e2b225f616ae32f5eb",
+      "size_bytes": 1628349,
+      "status": "acquired",
+      "license_note": "Author-hosted public PDF. Local processing only; abstract skills; do not commit redistribution of the binary.",
+      "acquired_at": "2026-11-10T21:32:18.977628+00:00"
+    },
+    {
+      "id": "adem_yuce_ai_literacy_and_prompt_engineering",
+      "title": "AI Literacy and Prompt Engineering",
+      "author": "Adem Y\u00fcce",
+      "series": "Production Engineering with AI",
+      "format": "epub",
+      "source_url": "https://api.ademyuce.tr/api/v1/epub/cilt1en",
+      "final_url": "https://api.ademyuce.tr/api/v1/epub/cilt1en",
+      "local_path": "books/originals/adem_yuce_ai_literacy_and_prompt_engineering.epub",
+      "sha256": "b762018738b426cd53c8715239cab0c73b28af86cd1a7a7e53fd224381fdb613",
+      "size_bytes": 41769646,
+      "status": "acquired",
+      "license_note": "Downloaded from official author API (kitap.ademyuce.tr). Retain attribution; do not redistribute binaries via public git; generate abstractions only.",
+      "acquired_at": "2026-11-10T21:32:09.418331+00:00"
+    },
+    {
+      "id": "adem_yuce_vibe_coding_and_loop_engineering",
+      "title": "Vibe Coding and Loop Engineering",
+      "author": "Adem Y\u00fcce",
+      "series": "Production Engineering with AI",
+      "format": "epub",
+      "source_url": "https://api.ademyuce.tr/api/v1/epub/cilt2en",
+      "final_url": "https://api.ademyuce.tr/api/v1/epub/cilt2en",
+      "local_path": "books/originals/adem_yuce_vibe_coding_and_loop_engineering.epub",
+      "sha256": "f205c4b4a957881cea44194c4fc6f2ebe8ff36ac7b17608e227e8c932752cadb",
+      "size_bytes": 10858426,
+      "status": "acquired",
+      "license_note": "Downloaded from official author API (kitap.ademyuce.tr). Retain attribution; do not redistribute binaries via public git; generate abstractions only.",
+      "acquired_at": "2026-11-10T21:32:14.190042+00:00"
+    },
+    {
+      "id": "adem_yuce_agent_engineering",
+      "title": "Agent Engineering",
+      "author": "Adem Y\u00fcce",
+      "series": "Production Engineering with AI",
+      "format": "epub",
+      "source_url": "https://api.ademyuce.tr/api/v1/epub/cilt3en",
+      "final_url": "https://api.ademyuce.tr/api/v1/epub/cilt3en",
+      "local_path": "books/originals/adem_yuce_agent_engineering.epub",
+      "sha256": "c8d764d3d008af5f4b666d2a3ded5dc4f849068a5c3ae06f192782c2a86d51c1",
+      "size_bytes": 4825720,
+      "status": "acquired",
+      "license_note": "Downloaded from official author API (kitap.ademyuce.tr). Retain attribution; do not redistribute binaries via public git; generate abstractions only.",
+      "acquired_at": "2026-11-10T21:32:16.498274+00:00"
+    },
+    {
+      "id": "adem_yuce_ai_native_production",
+      "title": "AI-Native Production",
+      "author": "Adem Y\u00fcce",
+      "series": "Production Engineering with AI",
+      "format": "epub",
+      "source_url": "https://api.ademyuce.tr/api/v1/epub/cilt4en",
+      "final_url": "https://api.ademyuce.tr/api/v1/epub/cilt4en",
+      "local_path": "books/originals/adem_yuce_ai_native_production.epub",
+      "sha256": "2433d642970dfce94c9d9063eade0645d5a89ab427a92e71d7597dd22e2d9659",
+      "size_bytes": 2631328,
+      "status": "acquired",
+      "license_note": "Downloaded from official author API (kitap.ademyuce.tr). Retain attribution; do not redistribute binaries via public git; generate abstractions only.",
+      "acquired_at": "2026-11-10T21:32:18.976101+00:00"
+    }
+  ],
+  "counts": {
+    "acquired": 6,
+    "metadata_only": 1,
+    "failed": 0
+  }
+}

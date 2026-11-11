@@ -8,7 +8,13 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.providers.base import ModelProvider, PrimaryAnalysis, ProviderError, ProviderErrorKind
+from app.providers.base import (
+    GenerationSettings,
+    ModelProvider,
+    PrimaryAnalysis,
+    ProviderError,
+    ProviderErrorKind,
+)
 from app.providers.mock import heuristic_primary
 
 logger = logging.getLogger("vibeprompt.providers")
@@ -148,11 +154,15 @@ class FailoverPrimaryProvider(ModelProvider):
         project_snapshot: dict[str, Any],
         user_message: str,
         conversation_tail: list[dict[str, str]],
+        behavioural_mode: str = "conversational",
+        generation: GenerationSettings | None = None,
     ) -> PrimaryAnalysis:
         result = await self.run_primary(
             project_snapshot=project_snapshot,
             user_message=user_message,
             conversation_tail=conversation_tail,
+            behavioural_mode=behavioural_mode,
+            generation=generation,
         )
         return result.analysis
 
@@ -162,6 +172,8 @@ class FailoverPrimaryProvider(ModelProvider):
         project_snapshot: dict[str, Any],
         user_message: str,
         conversation_tail: list[dict[str, str]],
+        behavioural_mode: str = "conversational",
+        generation: GenerationSettings | None = None,
     ) -> FailoverResult:
         attempts: list[ProviderAttempt] = []
         deadline = time.monotonic() + self.total_budget_seconds
@@ -206,6 +218,8 @@ class FailoverPrimaryProvider(ModelProvider):
                         project_snapshot=project_snapshot,
                         user_message=user_message,
                         conversation_tail=conversation_tail,
+                        behavioural_mode=behavioural_mode,
+                        generation=generation,
                     ),
                     timeout=attempt_timeout,
                 )
@@ -268,6 +282,8 @@ class FailoverPrimaryProvider(ModelProvider):
                                     project_snapshot=project_snapshot,
                                     user_message=user_message,
                                     conversation_tail=conversation_tail,
+                                    behavioural_mode=behavioural_mode,
+                                    generation=generation,
                                 ),
                                 timeout=min(self.per_provider_timeout, deadline - time.monotonic()),
                             )
@@ -311,6 +327,7 @@ class FailoverPrimaryProvider(ModelProvider):
             project_snapshot=project_snapshot,
             user_message=user_message,
             conversation_tail=conversation_tail,
+            behavioural_mode=behavioural_mode,
         )
         status = build_status_message(attempts, "offline", offline=True)
         result = FailoverResult(

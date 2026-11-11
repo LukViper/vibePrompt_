@@ -1,0 +1,106 @@
+{
+  "generated_at": "2026-11-11T10:26:22.069165+00:00",
+  "cases": 9,
+  "upgraded_hits": 9,
+  "baseline_hits": 0,
+  "upgraded_recall": 1.0,
+  "baseline_recall": 0.0,
+  "recommendation_coverage": 1.0,
+  "false_positive_high_on_clean_project": 0,
+  "extra_fields_flagged": 0,
+  "decision_state_correct": true,
+  "acknowledge_reasonable_on_clean": true,
+  "case_scores": [
+    {
+      "case": "A",
+      "expected_field": "pricing",
+      "upgraded_hit": true,
+      "baseline_hit": false,
+      "alternatives": 3,
+      "has_recommendation": true,
+      "invented_extra_fields": [],
+      "objective_preserved": true
+    },
+    {
+      "case": "B",
+      "expected_field": "inventory_sync",
+      "upgraded_hit": true,
+      "baseline_hit": false,
+      "alternatives": 3,
+      "has_recommendation": true,
+      "invented_extra_fields": [],
+      "objective_preserved": true
+    },
+    {
+      "case": "C",
+      "expected_field": "ux_honesty",
+      "upgraded_hit": true,
+      "baseline_hit": false,
+      "alternatives": 3,
+      "has_recommendation": true,
+      "invented_extra_fields": [],
+      "objective_preserved": true
+    },
+    {
+      "case": "D",
+      "expected_field": "scope_budget",
+      "upgraded_hit": true,
+      "baseline_hit": false,
+      "alternatives": 3,
+      "has_recommendation": true,
+      "invented_extra_fields": [],
+      "objective_preserved": true
+    },
+    {
+      "case": "E",
+      "expected_field": "update_cadence",
+      "upgraded_hit": true,
+      "baseline_hit": false,
+      "alternatives": 3,
+      "has_recommendation": true,
+      "invented_extra_fields": [],
+      "objective_preserved": true
+    },
+    {
+      "case": "F",
+      "expected_field": "bulk_upload",
+      "upgraded_hit": true,
+      "baseline_hit": false,
+      "alternatives": 3,
+      "has_recommendation": true,
+      "invented_extra_fields": [],
+      "objective_preserved": true
+    },
+    {
+      "case": "G",
+      "expected_field": "ops_ownership",
+      "upgraded_hit": true,
+      "baseline_hit": false,
+      "alternatives": 3,
+      "has_recommendation": true,
+      "invented_extra_fields": [],
+      "objective_preserved": true
+    },
+    {
+      "case": "H",
+      "expected_field": "cms_commerce",
+      "upgraded_hit": true,
+      "baseline_hit": false,
+      "alternatives": 3,
+      "has_recommendation": true,
+      "invented_extra_fields": [],
+      "objective_preserved": true
+    },
+    {
+      "case": "I",
+      "expected_field": "regulatory",
+      "upgraded_hit": true,
+      "baseline_hit": false,
+      "alternatives": 3,
+      "has_recommendation": true,
+      "invented_extra_fields": [],
+      "objective_preserved": true
+    }
+  ],
+  "improvement_claim": true
+}

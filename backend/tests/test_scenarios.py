@@ -18,6 +18,7 @@ from app.providers.base import (
     ProviderErrorKind,
     StatePatch,
 )
+from app.grill.modes import BehaviouralMode
 from app.providers.mock import MockProvider, heuristic_primary
 from tests.conftest import build_engine, make_finding
 
@@ -247,7 +248,11 @@ async def test_08_critic_rejects_weak_finding(repo, settings, project):
         critic=MockProvider(critic_handler=critic, call_log=call_log),
         offline=False,
     )
-    res = await engine.handle_message(project.id, "We'll use React for the frontend architecture.")
+    res = await engine.handle_message(
+        project.id,
+        "We'll use React for the frontend architecture.",
+        behavioural_mode=BehaviouralMode.GRILL_REVIEW,
+    )
     assert "critic" in call_log
     open_medium = [
         f
@@ -301,6 +306,7 @@ async def test_09_critic_discovers_overlooked_risk(repo, settings, project):
     res = await engine.handle_message(
         project.id,
         "I want to build a health records platform storing patient data with a simple CRUD UI and admin dashboard for clinics.",
+        behavioural_mode=BehaviouralMode.GRILL_REVIEW,
     )
     titles = [f.title for f in res.findings if f.status == FindingStatus.OPEN]
     assert any("privacy" in t.lower() or "compliance" in t.lower() for t in titles)

@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VibePrompt — Presentation</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --bg-2: #101a2d;
+        --panel: rgba(17, 24, 39, 0.9);
+        --panel-2: rgba(30, 41, 59, 0.8);
+        --card: rgba(15, 23, 42, 0.95);
+        --line: rgba(148, 163, 184, 0.25);
+        --text: #e5eefb;
+        --muted: #9db0ca;
+        --primary: #7c9bff;
+        --primary-2: #6ee7b7;
+        --accent: #fbbf24;
+        --danger: #f87171;
+        --shadow: 0 24px 60px rgba(15, 23, 42, 0.5);
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        font-family: Inter, "Segoe UI", sans-serif;
+        background: radial-gradient(circle at top, #14213d 0%, #0b1020 40%, #070c16 100%);
+        color: var(--text);
+      }
+      .deck {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 40px 28px 80px;
+      }
+      .slide {
+        position: relative;
+        min-height: 720px;
+        margin: 0 auto 28px;
+        border: 1px solid var(--line);
+        border-radius: 26px;
+        background: linear-gradient(180deg, rgba(10,17,30,0.94), rgba(17,24,39,0.96));
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      .slide-inner {
+        padding: 54px 72px 48px;
+      }
+      .eyebrow {
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--primary-2);
+        font-weight: 700;
+      }
+      h1 { font-size: 60px; margin: 18px 0 12px; line-height: 1.05; }
+      h2 { font-size: 38px; margin: 12px 0 18px; line-height: 1.15; }
+      h3 { font-size: 22px; margin: 0 0 12px; }
+      p, li {
+        font-size: 19px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .subtitle {
+        font-size: 26px; color: var(--text);
+        max-width: 760px;
+      }
+      .tagline {
+        display: inline-block;
+        margin-top: 16px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(124, 155, 255, 0.12);
+        border: 1px solid rgba(124, 155, 255, 0.35);
+        color: #dfe8ff;
+        font-weight: 600;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 24px;
+        align-items: start;
+      }
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+      .card {
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.8));
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 22px 20px;
+      }
+      .card strong { color: var(--text); }
+      .pill {
+        background: rgba(110, 231, 183, 0.12);
+        color: var(--primary-2);
+        border: 1px solid rgba(110, 231, 183, 0.25);
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 13px;
+        font-weight: 700;
+        display: inline-block;
+        margin-bottom: 12px;
+      }
+      .quote {
+        font-size: 30px;
+        line-height: 1.4;
+        color: var(--text);
+        margin: 18px 0;
+      }
+      .beforeafter {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 22px;
+        margin-top: 22px;
+      }
+      .before, .after {
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        padding: 22px 20px;
+      }
+      .before { background: rgba(248, 113, 113, 0.07); }
+      .after { background: rgba(110, 231, 183, 0.07); }
+      .before h3 { color: #fca5a5; }
+      .after h3 { color: #86efac; }
+      .flow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 28px;
+      }
+      .step {
+        background: rgba(17, 24, 39, 0.9);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 14px 16px;
+        min-width: 140px;
+        text-align: center;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .arrow { font-size: 28px; color: var(--primary); }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 18px;
+        font-size: 16px;
+      }
+      th, td {
+        border: 1px solid var(--line);
+        padding: 12px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: rgba(124,155,255,0.12);
+        color: var(--text);
+      }
+      td { color: var(--muted); }
+      .status {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        border: 1px solid rgba(124,155,255,0.3);
+        background: rgba(124,155,255,0.12);
+      }
+      .status.partial { background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.3); color: #f9d66d; }
+      .status.not { background: rgba(148,163,184,0.08); border-color: rgba(148,163,184,0.2); color: #cbd5e1; }
+      .status.na { background: rgba(110,231,183,0.08); border-color: rgba(110,231,183,0.2); color: #a7f3d0; }
+      .competitor-list {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-top: 18px;
+      }
+      .competitor {
+        background: rgba(12, 18, 30, 0.9);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 18px 18px 14px;
+      }
+      .competitor h4 { margin: 0 0 8px; color: var(--text); }
+      .competitor p { margin: 0; font-size: 16px; }
+      .tech-stack {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0,1fr));
+        gap: 18px;
+        margin-top: 24px;
+      }
+      .tech-box {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 18px 16px;
+        background: rgba(10, 15, 24, 0.8);
+      }
+      .tech-box strong { display: block; margin-bottom: 8px; color: var(--text); }
+      .hero-band {
+        position: absolute; inset: 0 auto auto 0;
+        width: 100%;
+        height: 8px;
+        background: linear-gradient(90deg, var(--primary), var(--primary-2), var(--accent));
+      }
+      .mini {
+        font-size: 15px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      ul.tight li { margin-bottom: 8px; }
+      @media (max-width: 980px) {
+        .slide-inner { padding: 34px 26px 30px; }
+        h1 { font-size: 42px; }
+        h2 { font-size: 30px; }
+        .grid-2, .grid-3, .beforeafter, .competitor-list, .tech-stack { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="deck">
+      <section class="slide">
+        <div class="hero-band"></div>
+        <div class="slide-inner">
+          <div class="eyebrow">Product overview</div>
+          <h1>VibePrompt</h1>
+          <div class="subtitle">An AI-powered prompt engineering workspace for coding agents.</div>
+          <div class="tagline">Evidence-first review before agent execution</div>
+          <div class="grid-2" style="margin-top: 36px;">
+            <div class="card">
+              <div class="pill">Current product direction</div>
+              <p><strong>VibePrompt today</strong> is an evidence-driven adversarial project reviewer, built as a FastAPI + React app with provider failover and structured project state.</p>
+              <p>Its core value is not generic prompt storage; it is <strong>challenging weak assumptions, unrealistic scope, and contradictory requirements</strong> before an agent spends tokens.</p>
+            </div>
+            <div class="card">
+              <div class="pill">Why it matters</div>
+              <p>The product narrows a fuzzy idea into a better engineering brief, making it easier for an LLM or coding agent to act with context, constraints, and measurable completion criteria.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow">Slide 2 — The problem</div>
+          <h2>Vague requests generate weak agent outcomes.</h2>
+          <div class="quote">“Build me an e-commerce application.”</div>
+          <div class="grid-2">
+            <div class="card">
+              <div class="pill">What breaks</div>
+              <ul class="tight">
+                <li>Unclear requirements produce low-quality implementation.</li>
+                <li>Project-specific context is missing, so the model improvises.</li>
+                <li>Technical constraints are underspecified.</li>
+                <li>Different agents interpret the same brief differently.</li>
+                <li>Teams waste time refining prompts instead of shipping.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <div class="pill">Typical failure mode</div>
+              <p>An autonomous coding agent receives an underspecified ask and chooses assumptions about stack, data model, auth, hosting, and delivery. The result is often a plausible artifact that is misaligned with the actual goal.</p>
+              <p><strong>VibePrompt’s value:</strong> surface the missing assumptions before token-heavy execution begins.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow">Slide 3 — The solution</div>
+          <h2>Turn a vague idea into an actionable engineering brief.</h2>
+          <div class="beforeafter">
+            <div class="before">
+              <h3>Before</h3>
+              <p>“Build an e-commerce application.”</p>
+              <ul class="tight">
+                <li>Ambiguous business goal</li>
+                <li>No stack constraints</li>
+                <li>No testing criteria</li>
+                <li>No definition of done</li>
+              </ul>
+            </div>
+            <div class="after">
+              <h3>After</h3>
+              <p>Structured project brief with:</p>
+              <ul class="tight">
+                <li>Project objective</li>
+                <li>Functional requirements</li>
+                <li>Technology stack</li>
+                <li>Architecture constraints</li>
+                <li>Database requirements</li>
+                <li>Implementation stages</li>
+                <li>Testing criteria</li>
+                <li>Definition of done</li>
+              </ul>
+            </div>
+          </div>
+          <p style="margin-top: 24px;">This is the product’s central transformation: <strong>better inputs generate better code outputs.</strong> The app compiles a reliable project specification from structured evidence, not just unstructured chat.</p>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow">Slide 4 — How VibePrompt works</div>
+          <h2>Workflow: from raw input to better agent execution</h2>
+          <div class="flow">
+            <div class="step">User input</div>
+            <div class="arrow">→</div>
+            <div class="step">Requirement understanding</div>
+            <div class="arrow">→</div>
+            <div class="step">Context gathering</div>
+            <div class="arrow">→</div>
+            <div class="step">Prompt engineering</div>
+            <div class="arrow">→</div>
+            <div class="step">Target agent adaptation</div>
+            <div class="arrow">→</div>
+            <div class="step">Prompt validation</div>
+            <div class="arrow">→</div>
+            <div class="step">Final generated prompt</div>
+            <div class="arrow">→</div>
+            <div class="step">Coding agent execution</div>
+          </div>
+          <div class="card" style="margin-top: 24px;">
+            <div class="pill">Important distinction</div>
+            <p>The inference model and the target coding agent are separate concerns. VibePrompt can review and refine what should be sent to an external model, while the actual coding execution still happens in the target agent environment.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow">Slide 5 — Market and competitive landscape</div>
+          <h2>Evidence-based view of the current market</h2>
+          <div class="competitor-list">
+            <div class="competitor">
+              <h4>Direct / near-direct</h4>
+              <p><strong>droPrompt</strong> — workspace for creating, organizing, and monetizing prompts; strongest on prompt library and marketplace flows.</p>
+            </div>
+            <div class="competitor">
+              <h4>Direct / near-direct</h4>
+              <p><strong>PromptBuild</strong> — prompt publishing/workflow product, but its public positioning is less specific to coding-agent structured engineering guidance.</p>
+            </div>
+            <div class="competitor">
+              <h4>Direct / near-direct</h4>
+              <p><strong>Prompt Architects</strong> — positioned closer to prompt design and strategy services than a developer-facing engineering review workflow.</p>
+            </div>
+            <div class="competitor">
+              <h4>Adjacent products</h4>
+              <p><strong>AIPRM</strong> — large prompt marketplace for ChatGPT/AI tooling; primarily a prompt catalog and shortcut layer.</p>
+            </div>
+            <div class="competitor">
+              <h4>Adjacent products</h4>
+              <p><strong>PromptPerfect</strong> — prompt optimization marketing product; useful for prompt tuning, but not a project-review or project-specification system.</p>
+            </div>
+            <div class="competitor">
+              <h4>Adjacent products</h4>
+              <p><strong>PromptLayer</strong> — prompt versioning, evals, observability, and production workflow tooling; strong on quality management but not the same as upfront project review.</p>
+            </div>
+            <div class="competitor">
+              <h4>Integration targets</h4>
+              <p><strong>Cursor Rules and Skills</strong> — developer customization layers for coding agents, not direct competitors to a product-review platform.</p>
+            </div>
+            <div class="competitor">
+              <h4>Integration targets</h4>
+              <p><strong>Claude Code Skills</strong> — agent customization and reusable instruction patterns; helpful but not a direct product-brief or project-readiness platform.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow">Slide 6 — Competitive comparison</div>
+          <h2>Where VibePrompt fits today</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Capability</th>
+                <th>VibePrompt</th>
+                <th>droPrompt</th>
+                <th>PromptLayer</th>
+                <th>PromptPerfect</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Prompt generation</td>
+                <td><span class="status">Supported</span></td>
+                <td><span class="status">Supported</span></td>
+                <td><span class="status">Supported</span></td>
+                <td><span class="status partial">Partially supported</span></td>
+              </tr>
+              <tr>
+                <td>Coding-agent-specific instructions</td>
+                <td><span class="status">Supported</span></td>
+                <td><span class="status not">Not verified</span></td>
+                <td><span class="status partial">Partially supported</span></td>
+                <td><span class="status not">Not verified</span></td>
+              </tr>
+              <tr>
+                <td>Project requirement analysis</td>
+                <td><span class="status">Supported</span></td>
+                <td><span class="status not">Not verified</span></td>
+                <td><span class="status partial">Partially supported</span></td>
+                <td><span class="status not">Not verified</span></td>
+              </tr>
+              <tr>
+                <td>Context engineering</td>
+                <td><span class="status">Supported</span></td>
+                <td><span class="status partial">Partially supported</span></td>
+                <td><span class="status">Supported</span></td>
+                <td><span class="status partial">Partially supported</span></td>
+              </tr>
+              <tr>
+                <td>Multi-provider inference</td>
+                <td><span class="status">Supported</span></td>
+                <td><span class="status not">Not verified</span></td>
+                <td><span class="status partial">Partially supported</span></td>
+                <td><span class="status not">Not verified</span></td>
+              </tr>
+              <tr>
+                <td>BYOK support</td>
+                <td><span class="status partial">Planned</span></td>
+                <td><span class="status not">Not verified</span></td>
+                <td><span class="status partial">Partially supported</span></td>
+                <td><span class="status not">Not verified</span></td>
+              </tr>
+              <tr>
+                <td>Custom API endpoints</td>
+                <td><span class="status partial">Implemented in architecture</span></td>
+                <td><span class="status not">Not verified</span></td>
+                <td><span class="status partial">Partially supported</span></td>
+                <td><span class="status not">Not verified</span></td>
+              </tr>
+              <tr>
+                <td>Prompt evaluation</td>
+                <td><span class="status">Supported</span></td>
+                <td><span class="status not">Not verified</span></td>
+                <td><span class="status">Supported</span></td>
+                <td><span class="status partial">Partially supported</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow">Slide 7 — Differentiation</div>
+          <h2>VibePrompt’s differentiation is product and workflow design.</h2>
+          <div class="grid-3">
+            <div class="card">
+              <div class="pill">1</div>
+              <h3>Provider-independent inference</h3>
+              <p>Architecture supports multiple providers, failover behavior, and explicit provider status reporting.</p>
+            </div>
+            <div class="card">
+              <div class="pill">2</div>
+              <h3>Evidence-first review</h3>
+              <p>It does not blindly accept assumptions; it challenges them against explicit requirements and constraints.</p>
+            </div>
+            <div class="card">
+              <div class="pill">3</div>
+              <h3>Coding-agent alignment</h3>
+              <p>It is not a generic prompt library; it is designed for engineering task clarity before building begins.</p>
+            </div>
+            <div class="card">
+              <div class="pill">4</div>
+              <h3>Structured requirements</h3>
+              <p>Project context becomes a reusable engineered brief instead of an isolated chat transcript.</p>
+            </div>
+            <div class="card">
+              <div class="pill">5</div>
+              <h3>Prompt quality evaluation</h3>
+              <p>Readiness, compilation, and finding lifecycle create a proprietary decision layer for prompt quality.</p>
+            </div>
+            <div class="card">
+              <div class="pill">6</div>
+              <h3>Reusable engineering knowledge</h3>
+              <p>Project state, findings, and compiled specifications are stored and can be reviewed over time.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow">Slide 8 — BYOK and universal model integration</div>
+          <h2>Bring Your Own Key is a future-facing direction, not a present claim.</h2>
+          <div class="grid-2">
+            <div class="card">
+              <div class="pill">Current implementation reality</div>
+              <p>The repository already includes native provider adapters for <strong>Gemini</strong>, <strong>OpenRouter</strong>, and <strong>Groq</strong>, plus an OpenAI-compatible adapter layer. It also supports an offline heuristic fallback so local demos and tests still work without keys.</p>
+              <p><strong>Important:</strong> BYOK is framed in the product direction as a planned capability, not something the repo claims is fully implemented today.</p>
+            </div>
+            <div class="card">
+              <div class="pill">Target long-term model mix</div>
+              <ul class="tight">
+                <li>OpenAI</li>
+                <li>Google Gemini</li>
+                <li>Anthropic Claude</li>
+                <li>OpenAI-compatible APIs</li>
+                <li>Groq</li>
+                <li>OpenRouter</li>
+                <li>DeepSeek</li>
+                <li>Ollama</li>
+                <li>Together AI</li>
+                <li>Fireworks AI</li>
+                <li>Mistral</li>
+              </ul>
+            </div>
+          </div>
+          <p style="margin-top: 22px;">The architecture is built around provider abstraction, adapter layers, custom base URLs, model selection, capability detection, and credential isolation — but the repo should be presented as a serious foundation rather than a fully mature universal provider platform.</p>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow">Slide 9 — Technical architecture</div>
+          <h2>Current implementation: modular monolith with provider abstraction</h2>
+          <div class="tech-stack">
+            <div class="tech-box"><strong>Frontend</strong> React 18 + TypeScript + Vite UI</div>
+            <div class="tech-box"><strong>Backend</strong> FastAPI + Pydantic + Python 3.11+</div>
+            <div class="tech-box"><strong>Persistence</strong> SQLite project state via repository layer</div>
+            <div class="tech-box"><strong>Model provider stack</strong> Gemini → OpenRouter → Groq failover</div>
+          </div>
+          <div class="card" style="margin-top: 24px;">
+            <div class="pill">Visible architecture</div>
+            <ul class="tight">
+              <li><strong>backend/app/providers/</strong> — Gemini, OpenRouter, Groq, OpenAI-compatible adapter, failover logic</li>
+              <li><strong>backend/app/orchestration/</strong> — selective model invocation and provider selection</li>
+              <li><strong>backend/app/grill/</strong> — review policy, findings lifecycle, critic reconciliation</li>
+              <li><strong>backend/app/projects/</strong> — structured project state and project operations</li>
+              <li><strong>backend/app/compilation/</strong> — readiness gate and specification compiler</li>
+              <li><strong>frontend/</strong> — interactive project/review workflow</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow">Slide 10 — Product workflow in the app</div>
+          <h2>What users do today</h2>
+          <div class="grid-2">
+            <div class="card">
+              <div class="pill">Core loop</div>
+              <ul class="tight">
+                <li>Create a project with objective and initial message.</li>
+                <li>Send project or product context into the review workflow.</li>
+                <li>Get findings such as unrealistic scope, missing constraints, or contradictions.</li>
+                <li>Resolve or reject issues with evidence-based status changes.</li>
+                <li>Check deterministic readiness before specification generation.</li>
+                <li>Export a final markdown or structured spec.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <div class="pill">Quality gate</div>
+              <p>Readiness is not a generic “looks good” score. It is a deterministic gate that blocks critical or high-risk gaps and encourages evidence-based progression.</p>
+              <p>The project stores messages, findings, and risk status in SQLite — which is a solid MVP foundation for further productization.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow">Slide 11 — MVP scope and current capabilities</div>
+          <h2>The implemented scope is focused and credible.</h2>
+          <div class="grid-3">
+            <div class="card">
+              <h3>Implemented</h3>
+              <ul class="tight">
+                <li>Project creation and memory</li>
+                <li>Review chat workflow</li>
+                <li>Finding lifecycle</li>
+                <li>Multi-provider failover</li>
+                <li>Readiness gate</li>
+                <li>Specification export</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Validated by repo</h3>
+              <ul class="tight">
+                <li>Provider and failover tests</li>
+                <li>Project scenario tests</li>
+                <li>Readiness and lifecycle tests</li>
+                <li>Prompt injection handling</li>
+                <li>Secret non-exposure checks</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Not fully mature</h3>
+              <ul class="tight">
+                <li>Multi-user auth</li>
+                <li>Public production deployment</li>
+                <li>Full BYOK rollout</li>
+                <li>Marketplace or team collaboration features</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow">Slide 12 — Implementation roadmap</div>
+          <h2>Phased roadmap for a stronger VibePrompt platform</h2>
+          <div class="grid-2">
+            <div class="card">
+              <div class="pill">Phase 1 — Validate the core</div>
+              <ul class="tight">
+                <li>Ship polished review UX</li>
+                <li>Strengthen provider failover and reliability</li>
+                <li>Improve spec generation quality and project templates</li>
+                <li>Reduce false positives and strengthen evidence grading</li>
+              </ul>
+            </div>
+            <div class="card">
+              <div class="pill">Phase 2 — Expand the platform</div>
+              <ul class="tight">
+                <li>BYOK-first credential flow</li>
+                <li>Provider abstraction and model selection UI</li>
+                <li>Template library and reusable knowledge packs</li>
+                <li>Multi-project collaboration and project sharing</li>
+              </ul>
+            </div>
+            <div class="card">
+              <div class="pill">Phase 3 — Make it operational</div>
+              <ul class="tight">
+                <li>Team workspaces, roles, and governance</li>
+                <li>Prompt eval and benchmarking</li>
+                <li>Logging, cost accounting, and observability</li>
+                <li>Enterprise deployment and security controls</li>
+              </ul>
+            </div>
+            <div class="card">
+              <div class="pill">Phase 4 — Extend beyond review</div>
+              <ul class="tight">
+                <li>Agent-specific payload generation</li>
+                <li>Context packaging for external coding agents</li>
+                <li>Reusable “engineering playbooks”</li>
+                <li>Scalable prompt intelligence for software teams</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow">Slide 13 — Future opportunities</div>
+          <h2>High-value opportunities beyond the initial reviewer</h2>
+          <div class="grid-3">
+            <div class="card">
+              <h3>Developer workflow tool</h3>
+              <p>Use VibePrompt to turn product ideas into production-ready requirements, testing criteria, and work breakdowns before coding begins.</p>
+            </div>
+            <div class="card">
+              <h3>Prompt intelligence layer</h3>
+              <p>Package prompt evaluation, structured context, and reusable project patterns into a SaaS platform for technical teams.</p>
+            </div>
+            <div class="card">
+              <h3>Agent orchestration layer</h3>
+              <p>Integrate directly with coding agents, allowing preflight prompt validation and project-specific context injection.</p>
+            </div>
+          </div>
+          <p style="margin-top: 26px;">The strongest strategic opportunity is not a prompt marketplace alone; it is a <strong>structured intelligence layer for coding agents</strong> that helps teams convert fuzzy intent into implementation-ready instructions.</p>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow">Slide 14 — Closing message</div>
+          <h2>VibePrompt is a credible product wedge with clear strategic upside.</h2>
+          <div class="quote">“The product starts as an evidence-driven reviewer, but the platform vision is a structured prompt and context layer for software delivery.”</div>
+          <div class="card">
+            <div class="pill">Final take</div>
+            <p>VibePrompt is most compelling when positioned as a <strong>quality gate for coding-agent work</strong>: validate assumptions, reduce ambiguity, and generate a stronger engineering brief before implementation begins. That makes it practical, differentiated, and technically grounded.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

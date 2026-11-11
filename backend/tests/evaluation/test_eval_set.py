@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from app.config import Settings
+from app.grill.modes import BehaviouralMode
 from app.persistence.repository import InMemoryProjectRepository
 from app.projects.models import FindingStatus, ProjectState
 from app.providers.base import (
@@ -123,7 +124,15 @@ class EvalMetrics:
 
 @pytest.mark.asyncio
 async def test_evaluation_primary_vs_two_model(tmp_path: Path):
-    settings = Settings(critic_enabled=True, review_intensity="normal")
+    settings = Settings(
+        critic_enabled=True,
+        review_intensity="normal",
+        free_tier_enabled=False,
+        gemini_api_key="",
+        openrouter_api_key="",
+        groq_api_key="",
+        qwen_api_key="",
+    )
     results: list[EvalMetrics] = []
 
     for case in CASES:
@@ -135,12 +144,7 @@ async def test_evaluation_primary_vs_two_model(tmp_path: Path):
             findings = list(case.primary_findings)
             review = case.critic
 
-            def primary_handler(
-                project_snapshot=None,
-                user_message=None,
-                conversation_tail=None,
-                _findings=findings,
-            ):
+            def primary_handler(_findings=findings, **_kwargs):
                 return PrimaryAnalysis(
                     reply="eval",
                     intent="initial_idea",
@@ -148,13 +152,7 @@ async def test_evaluation_primary_vs_two_model(tmp_path: Path):
                     state_patch=StatePatch(),
                 )
 
-            def critic_handler(
-                project_snapshot=None,
-                user_message=None,
-                candidate_findings=None,
-                primary_reply=None,
-                _review=review,
-            ):
+            def critic_handler(_review=review, **_kwargs):
                 return _review
 
             critic = (
@@ -174,7 +172,11 @@ async def test_evaluation_primary_vs_two_model(tmp_path: Path):
                 engine.settings = s.model_copy(update={"critic_enabled": False})
                 engine.critic = None
 
-            res = await engine.handle_message(project.id, case.message)
+            res = await engine.handle_message(
+                project.id,
+                case.message,
+                behavioural_mode=BehaviouralMode.GRILL_REVIEW,
+            )
             open_titles = [
                 f.title for f in res.findings if f.status == FindingStatus.OPEN
             ]

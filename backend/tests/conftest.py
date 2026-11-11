@@ -9,8 +9,11 @@ from fastapi.testclient import TestClient
 
 os.environ.pop("GEMINI_API_KEY", None)
 os.environ.pop("GROQ_API_KEY", None)
+os.environ.pop("QWEN_API_KEY", None)
+os.environ.pop("OPENROUTER_API_KEY", None)
 os.environ["CRITIC_ENABLED"] = "true"
 os.environ["REVIEW_INTENSITY"] = "normal"
+os.environ["FREE_TIER_ENABLED"] = "false"
 
 from app.config import Settings, get_settings
 from app.orchestration.engine import GrillEngine
@@ -25,7 +28,10 @@ def settings() -> Settings:
     get_settings.cache_clear()
     return Settings(
         gemini_api_key="",
+        openrouter_api_key="",
         groq_api_key="",
+        qwen_api_key="",
+        free_tier_enabled=False,
         critic_enabled=True,
         review_intensity="normal",
         database_path="./data/test.db",

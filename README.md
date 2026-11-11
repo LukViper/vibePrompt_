@@ -17,9 +17,13 @@ Modular monolith:
 | `backend/app/compilation/` | Deterministic readiness gate + Markdown specification compiler |
 | `backend/app/persistence/` | SQLite repository (swappable) |
 | `backend/app/api/` | FastAPI HTTP API |
+| `backend/app/knowledge/` | Book discovery, legal acquisition, processing pipeline |
+| `backend/app/skills/` | Skill registry, Book-to-Skill drafts, mode-scoped retrieval |
 | `frontend/` | React + TypeScript + Vite UI |
 
-**Cost-conscious orchestration:** greetings and trivial clarifications skip model debate; material decisions may run primary → critic; insistence without evidence does not withdraw findings; resolved findings are not regenerated without new material evidence.
+**Behavioural modes:** Chat (conversational), Brainstorm, and Grill review — selected automatically from intent (sticky across follow-ups) or set explicitly in the UI. Critic runs only in Grill review and never rewrites the conversational reply.
+
+**Cost-conscious orchestration:** greetings and trivial clarifications skip model debate; Grill review may run primary → critic; insistence without evidence does not withdraw findings; resolved findings are not regenerated without new material evidence.
 
 **Provider failover (primary analysis):** Gemini → OpenRouter → Groq → offline heuristics. Only the next eligible provider is tried after a retryable failure (429, 5xx, timeout, connection). Auth/invalid-request errors skip that provider without infinite retries. Independent critic remains Groq when configured.
 
@@ -82,6 +86,41 @@ See `backend/.env.example`.
 | `DATABASE_PATH` | SQLite file | `./data/vibeprompt.db` |
 | `API_SECRET` | Optional shared secret (`X-API-Secret`) | empty |
 | `CORS_ORIGINS` | Allowed browser origins | localhost Vite |
+| `FREE_TIER_ENABLED` | Platform-funded Qwen free tier + BYOK hybrid | `false` |
+| `FREE_TIER_PROVIDER` | Free-tier provider (must be `qwen`) | `qwen` |
+| `FREE_TIER_MODEL` | Free-tier model id (MuleRouter) | `qwen3.5-flash` |
+| `FREE_TIER_GENERATIONS` | One-time generations per new user | `20` |
+| `FREE_TIER_MAX_INPUT_TOKENS` | Cap input tokens (config) | `8000` |
+| `FREE_TIER_MAX_OUTPUT_TOKENS` | Cap free-tier output tokens | `2048` |
+| `FREE_TIER_RATE_LIMIT_PER_MINUTE` | Per-user generation rate limit | `10` |
+| `QWEN_API_KEY` | Shared platform Qwen/DashScope key | empty |
+| `QWEN_BASE_URL` | MuleRouter OpenAI-compatible base URL | `https://api.mulerouter.ai/vendors/openai/v1` |
+| `JWT_SECRET` | JWT signing secret (change in production) | dev default |
+| `CREDENTIALS_ENCRYPTION_KEY` | Fernet key material for BYOK encryption | dev default |
+| `ADMIN_EMAILS` | Comma-separated Knowledge Library admins | empty (any auth user when free tier off) |
+| `KNOWLEDGE_UPLOAD_DIR` | Uploaded book storage | `./data/knowledge/uploads` |
+| `SKILLS_DIR` | Skill package files on disk | `./data/skills` |
+
+### Knowledge Library (Book-to-Skill)
+
+Administrators can discover the eight target books, register legal acquisition options, upload rights-confirmed PDF/EPUB/TXT/DOCX, process them into abstracted concepts (not quotations), generate **draft** skills, evaluate, approve, and roll back. Approved skills inject a short ranked principle block into Chat / Brainstorm / Grill — never entire books.
+
+- Architecture: `docs/BOOK_TO_SKILL_ARCHITECTURE.md`
+- Acquisition report: `docs/ACQUISITION_REPORT.md` (all eight titles currently require purchase/library/manual upload — no fabricated downloads)
+- UI: sign in → **Knowledge Library** in the sidebar
+
+The system refuses pirate sources and will not auto-download commercial titles without an authorized open-access URL.
+
+### Free tier + BYOK (hybrid inference)
+
+When `FREE_TIER_ENABLED=true`:
+
+1. New users receive a **one-time** free generation allowance (default 20) funded by the platform’s shared `QWEN_API_KEY`.
+2. Successful AI reviews consume one generation; failures and conversation-only turns do not.
+3. After exhaustion, users must configure **BYOK** (Gemini / OpenRouter / Groq / Qwen). Stored keys are encrypted; raw keys are never returned by the API.
+4. BYOK users keep using their selected provider/model; the platform never silently switches an exhausted user to another platform-funded provider.
+
+Legacy mode (`FREE_TIER_ENABLED=false`) keeps the previous Gemini → OpenRouter → Groq → offline chain.
 
 Chat responses include `provider_status` (e.g. `Gemini rate-limited; OpenRouter responding`) and `offline_review`. Keys never appear in those fields.
 
@@ -89,6 +128,10 @@ Model identifiers change over time; override via env. Free-tier quotas are **not
 
 ## API (selected)
 
+- `POST /api/auth/register` / `POST /api/auth/login` / `GET /api/auth/me` — JWT auth
+- `GET /api/free-tier/status` — remaining/allocated generations + funding source
+- `GET|PUT /api/byok` — list / validate+save encrypted user API keys (never returned)
+- `GET /api/admin/free-tier-config` — admin-safe free-tier settings (no platform key)
 - `POST /api/projects` — create project (optional `initial_message`)
 - `GET /api/projects` — list
 - `GET /api/projects/{id}` — full state
@@ -96,6 +139,9 @@ Model identifiers change over time; override via env. Free-tier quotas are **not
 - `PATCH /api/projects/{id}/findings/{fid}` — `resolved` / `accepted_risk` / `rejected` / `open`
 - `GET /api/projects/{id}/readiness` — deterministic gate
 - `POST /api/projects/{id}/specification` — Markdown + structured spec
+- `GET /api/knowledge/acquisition-report` — legal acquisition options for target books
+- `GET|POST /api/knowledge/books…` — library CRUD, upload, process
+- `POST /api/knowledge/skills/generate|…/approve|…/evaluate` — draft → review → activate
 
 API keys never leave the server. Do not put secrets in the frontend.
 
@@ -134,7 +180,7 @@ Deterministic. Critical/high open findings and missing essentials block compilat
 
 - Offline heuristic primary is a thin stand-in for Gemini — useful for demos/tests, not a substitute for a live model.
 - Critic reconciliation is conservative (high-impact findings are demoted, not silently deleted, on critic disagreement).
-- No multi-user auth beyond optional `API_SECRET`; add real auth before exposing publicly.
+- Free-tier mode adds JWT auth + BYOK; keep `FREE_TIER_ENABLED=false` for the legacy single-tenant demo. Change `JWT_SECRET` and `CREDENTIALS_ENCRYPTION_KEY` before any public deploy.
 - Live Gemini/Groq integrations are implemented against current REST APIs but not exercised in CI without keys.
 
 ## License

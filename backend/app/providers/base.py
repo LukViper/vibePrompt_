@@ -81,6 +81,8 @@ class StatePatch(BaseModel):
     """Proposed project-state updates. Backend validates before applying."""
 
     objective: str | None = None
+    description: str | None = None
+    problem_statement: str | None = None
     intended_users: list[str] | None = None
     success_criteria: list[str] | None = None
     add_functional_requirements: list[str] | None = None
@@ -91,12 +93,26 @@ class StatePatch(BaseModel):
     add_decisions: list[dict[str, Any]] | None = None
     add_assumptions: list[str] | None = None
     add_open_questions: list[str] | None = None
+    add_preferences: list[str] | None = None
+    add_rejected_approaches: list[dict[str, str]] | None = None
+    add_known_risks: list[str] | None = None
+    add_outstanding_tasks: list[str] | None = None
+    add_completed_milestones: list[str] | None = None
     tech_stack: list[str] | None = None
+    add_technology_selections: list[dict[str, Any]] | None = None
+    # When true, conflicting tech in the same category may replace the active selection
+    replace_technology: bool | None = None
     architecture_notes: str | None = None
+    # auto | append | replace — controls long-form note updates
+    architecture_notes_mode: str | None = None
     data_model_notes: str | None = None
+    data_model_notes_mode: str | None = None
     security_notes: str | None = None
+    security_notes_mode: str | None = None
     testing_notes: str | None = None
+    testing_notes_mode: str | None = None
     milestones: list[str] | None = None
+    implementation_status: str | None = None
 
 
 class PrimaryAnalysis(BaseModel):
@@ -121,6 +137,16 @@ class CriticReview(BaseModel):
     insufficient_context: bool = False
 
 
+class GenerationSettings(BaseModel):
+    """Provider-agnostic generation knobs. Adapters map to supported API fields."""
+
+    temperature: float = 0.6
+    max_output_tokens: int | None = None
+    top_p: float | None = None
+    skill_knowledge_block: str | None = None
+    review_intensity: str = "normal"
+
+
 class ModelProvider(ABC):
     name: str
 
@@ -131,6 +157,8 @@ class ModelProvider(ABC):
         project_snapshot: dict[str, Any],
         user_message: str,
         conversation_tail: list[dict[str, str]],
+        behavioural_mode: str = "conversational",
+        generation: GenerationSettings | None = None,
     ) -> PrimaryAnalysis:
         raise NotImplementedError
 
@@ -142,6 +170,7 @@ class ModelProvider(ABC):
         user_message: str,
         candidate_findings: list[CandidateFinding],
         primary_reply: str,
+        generation: GenerationSettings | None = None,
     ) -> CriticReview:
         raise NotImplementedError
 

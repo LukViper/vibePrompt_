@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from app.providers.base import (
+    GenerationSettings,
     ModelProvider,
     PrimaryAnalysis,
     ProviderError,
@@ -16,7 +17,11 @@ from app.providers.base import (
 )
 from app.providers.openai_compat import classify_http_status, parse_retry_after
 from app.providers.parsing import parse_primary_analysis
-from app.providers.prompts import build_primary_prompt
+from app.providers.prompts import (
+    build_primary_system,
+    build_primary_user_payload,
+    normalize_history,
+)
 
 logger = logging.getLogger("vibeprompt.providers")
 
@@ -50,16 +55,34 @@ class GeminiProvider(ModelProvider):
         project_snapshot: dict[str, Any],
         user_message: str,
         conversation_tail: list[dict[str, str]],
+        behavioural_mode: str = "conversational",
+        generation: GenerationSettings | None = None,
     ) -> PrimaryAnalysis:
         if not self.is_available():
             raise ProviderError(ProviderErrorKind.UNAVAILABLE, "Gemini API key not configured")
 
-        prompt = build_primary_prompt(
+        gen = generation or GenerationSettings()
+        system = build_primary_system(
+            behavioural_mode,
+            skill_knowledge_block=gen.skill_knowledge_block,
+            review_intensity=gen.review_intensity,
+        )
+        history = normalize_history(conversation_tail)
+        user_payload = build_primary_user_payload(
             project_snapshot=project_snapshot,
             user_message=user_message,
-            conversation_tail=conversation_tail,
         )
-        text = await self._generate(prompt)
+        contents: list[dict[str, Any]] = []
+        for turn in history:
+            role = "user" if turn["role"] == "user" else "model"
+            contents.append({"role": role, "parts": [{"text": turn["content"]}]})
+        contents.append({"role": "user", "parts": [{"text": user_payload}]})
+        text = await self._generate(
+            contents=contents,
+            system=system,
+            temperature=gen.temperature,
+            max_output_tokens=gen.max_output_tokens or self.max_output_tokens,
+        )
         return parse_primary_analysis(text)
 
     async def critique(self, **_: Any) -> Any:
@@ -68,16 +91,24 @@ class GeminiProvider(ModelProvider):
             "Gemini is not used as the independent critic in this deployment",
         )
 
-    async def _generate(self, prompt: str) -> str:
+    async def _generate(
+        self,
+        *,
+        contents: list[dict[str, Any]],
+        system: str,
+        temperature: float,
+        max_output_tokens: int,
+    ) -> str:
         url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/"
             f"{self.model}:generateContent"
         )
         body = {
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "systemInstruction": {"parts": [{"text": system}]},
+            "contents": contents,
             "generationConfig": {
-                "temperature": 0.2,
-                "maxOutputTokens": self.max_output_tokens,
+                "temperature": temperature,
+                "maxOutputTokens": max_output_tokens,
                 "responseMimeType": "application/json",
             },
         }
@@ -142,6 +173,7 @@ class GeminiProvider(ModelProvider):
                         "success": True,
                         "failure_kind": None,
                         "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+                        "temperature": temperature,
                     },
                 )
                 return text

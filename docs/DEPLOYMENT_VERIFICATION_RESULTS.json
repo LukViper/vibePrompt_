@@ -1,0 +1,123 @@
+{
+  "generated_at": "2026-11-10T23:51:01.951325+00:00",
+  "passed": 21,
+  "failed": 0,
+  "total": 21,
+  "production_ready_claim": true,
+  "config_sanitized": {
+    "APP_ENV": "production",
+    "DATABASE_PATH": "/data/vibeprompt.db",
+    "CORS_ORIGINS": "http://127.0.0.1:18081,http://localhost:18081",
+    "API_PUBLISH_PORT": "18080",
+    "WEB_PUBLISH_PORT": "18081",
+    "secrets_present": true,
+    "secrets_are_placeholders": false
+  },
+  "checks": [
+    {
+      "name": "Clean container startup (compose up --build)",
+      "passed": true,
+      "detail": "behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\nCopying config sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea\nWriting manifest to image destination\n"
+    },
+    {
+      "name": "Application health endpoint",
+      "passed": true,
+      "detail": "http://127.0.0.1:18080/api/health"
+    },
+    {
+      "name": "Unauthenticated project list rejected in production",
+      "passed": true,
+      "detail": "401"
+    },
+    {
+      "name": "Request without X-API-Secret rejected",
+      "passed": true,
+      "detail": "401"
+    },
+    {
+      "name": "Authentication (register two users)",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Create project + Grill conversation (user A)",
+      "passed": true,
+      "detail": "{\"id\":\"prj_d1455ae65c7e\",\"name\":\"Deploy-Cyber\",\"description\":\"\",\"objective\":\"Cybersecurity log investigation assistant\",\"problem_statement\":\"\",\"intended_users\":[],\"success_criteria\":[],\"functional_req"
+    },
+    {
+      "name": "Two-user project isolation (B cannot read A)",
+      "passed": true,
+      "detail": "404"
+    },
+    {
+      "name": "Grill follow-up message",
+      "passed": true,
+      "detail": "{\"message\":{\"id\":\"msg_aed2ffcdff76\",\"role\":\"assistant\",\"content\":\"That makes sense. I can help you shape the idea, plan options, or run a Review when you want p"
+    },
+    {
+      "name": "Project context readable by owner",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Conversation messages persisted",
+      "passed": true,
+      "detail": "messages=4"
+    },
+    {
+      "name": "Agent prompt export (cursor)",
+      "passed": true,
+      "detail": "{\"readiness\":{\"ready\":false,\"status\":\"not_ready\",\"blockers\":[],\"warnings\":[\"No technology or architecture decisions recorded yet\",\"Conditional gap: Security req"
+    },
+    {
+      "name": "Agent prompt export (antigravity)",
+      "passed": true,
+      "detail": "{\"readiness\":{\"ready\":false,\"status\":\"not_ready\",\"blockers\":[],\"warnings\":[\"No technology or architecture decisions recorded yet\",\"Conditional gap: Security req"
+    },
+    {
+      "name": "Agent prompt export (codex)",
+      "passed": true,
+      "detail": "{\"readiness\":{\"ready\":false,\"status\":\"not_ready\",\"blockers\":[],\"warnings\":[\"No technology or architecture decisions recorded yet\",\"Conditional gap: Security req"
+    },
+    {
+      "name": "BYOK endpoint accessible when authenticated",
+      "passed": true,
+      "detail": "200"
+    },
+    {
+      "name": "SQLite online backup (compose profile)",
+      "passed": true,
+      "detail": "vpverify_api_1\nBACKUP_OK: /data/backups/vibeprompt-20261110T235021Z.db\n"
+    },
+    {
+      "name": "Container restart",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Project memory persists after restart",
+      "passed": true,
+      "detail": "status=200 messages=4"
+    },
+    {
+      "name": "Database restoration from backup",
+      "passed": true,
+      "detail": "RESTORE_OK: /data/vibeprompt.db\nPREVIOUS_SAVED: /data/vibeprompt.db.pre-restore-20261110T235048Z\n"
+    },
+    {
+      "name": "API healthy after restore",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Data integrity after restore (project still readable)",
+      "passed": true,
+      "detail": "200"
+    },
+    {
+      "name": "Compose teardown",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

@@ -8,6 +8,7 @@ from app.providers.base import (
     CandidateFinding,
     CriticFindingAction,
     CriticReview,
+    GenerationSettings,
     ModelProvider,
     PrimaryAnalysis,
     ProviderError,
@@ -49,6 +50,8 @@ class MockProvider(ModelProvider):
         project_snapshot: dict[str, Any],
         user_message: str,
         conversation_tail: list[dict[str, str]],
+        behavioural_mode: str = "conversational",
+        generation: GenerationSettings | None = None,
     ) -> PrimaryAnalysis:
         self.call_log.append("primary")
         if self._primary_error:
@@ -58,6 +61,8 @@ class MockProvider(ModelProvider):
                 project_snapshot=project_snapshot,
                 user_message=user_message,
                 conversation_tail=conversation_tail,
+                behavioural_mode=behavioural_mode,
+                generation=generation,
             )
         return PrimaryAnalysis(
             reply="Mock primary reply.",
@@ -73,6 +78,7 @@ class MockProvider(ModelProvider):
         user_message: str,
         candidate_findings: list[CandidateFinding],
         primary_reply: str,
+        generation: GenerationSettings | None = None,
     ) -> CriticReview:
         self.call_log.append("critic")
         if self._critic_error:
@@ -83,6 +89,7 @@ class MockProvider(ModelProvider):
                 user_message=user_message,
                 candidate_findings=candidate_findings,
                 primary_reply=primary_reply,
+                generation=generation,
             )
         return CriticReview(
             actions=[
@@ -97,23 +104,176 @@ def heuristic_primary(
     project_snapshot: dict[str, Any],
     user_message: str,
     conversation_tail: list[dict[str, str]],
+    behavioural_mode: str = "conversational",
+    **_: Any,
 ) -> PrimaryAnalysis:
     """Lightweight offline analyzer used when no API key is configured."""
+    from app.grill.offline_extract import (
+        extract_explicit_tech_and_rejections,
+        merge_offline_extraction,
+    )
+
     text = user_message.lower()
     findings: list[CandidateFinding] = []
     intent = "general"
     patch = StatePatch()
     reply_bits: list[str] = []
+    mode = (behavioural_mode or "explore").lower()
+    if mode in {"conversational", "chat"}:
+        mode = "explore"
+    if mode in {"brainstorming", "ideas"}:
+        mode = "plan"
+    if mode in {"grill_review", "grill", "critique"}:
+        mode = "review"
+
+    offline_ext = extract_explicit_tech_and_rejections(user_message)
+
+    def _finalize(p: StatePatch) -> StatePatch:
+        return merge_offline_extraction(p, offline_ext)
 
     greetings = ("hi", "hello", "hey", "thanks", "thank you")
     if text.strip() in greetings or (
         len(text) < 40 and any(text.startswith(g) for g in greetings)
     ):
         return PrimaryAnalysis(
-            reply="Hi — describe the project you want Grill to challenge before you build.",
+            reply=(
+                "Hi — tell me what you're working on, ask for project ideas, "
+                "or switch to Review when you want a hard challenge."
+            ),
             intent="greeting",
             findings=[],
             state_patch=StatePatch(),
+        )
+
+    if mode == "debug" or any(
+        w in text for w in ("stack trace", "traceback", "exception", "not working", "debug")
+    ):
+        cues = [
+            line.strip()
+            for line in user_message.splitlines()
+            if any(
+                k in line.lower()
+                for k in ("error", "exception", "traceback", "failed", "fatal")
+            )
+        ][:5]
+        evidence = cues or ["User-reported failure without structured logs"]
+        return PrimaryAnalysis(
+            reply=(
+                "Let's debug from the evidence. "
+                + (
+                    f"I see: {evidence[0]}. "
+                    if cues
+                    else "Share the exact error message or stack trace if you have it. "
+                )
+                + "Most likely causes usually sit near the failing boundary "
+                "(config, dependency mismatch, or invalid input). "
+                "What changed immediately before this broke?"
+            ),
+            intent="question",
+            findings=[],
+            most_important_question="What changed immediately before this broke?",
+            state_patch=_finalize(
+                StatePatch(
+                    add_known_risks=[f"Active debug: {user_message.strip()[:200]}"]
+                    if user_message.strip()
+                    else None
+                )
+            ),
+        )
+
+    # Explicit stack/reject statements take priority over brainstorming mode
+    if offline_ext.patch.tech_stack or offline_ext.patch.add_rejected_approaches:
+        bits = []
+        if offline_ext.patch.tech_stack:
+            bits.append(
+                "Recorded stack selection: " + ", ".join(offline_ext.patch.tech_stack) + "."
+            )
+        if offline_ext.patch.add_rejected_approaches:
+            names = [r["approach"] for r in offline_ext.patch.add_rejected_approaches]
+            bits.append("Recorded rejection(s): " + ", ".join(names) + ".")
+        return PrimaryAnalysis(
+            reply=" ".join(bits) + " I'll keep those constraints as we continue.",
+            intent="architecture_decision",
+            findings=[],
+            state_patch=_finalize(patch),
+        )
+
+    if any(
+        w in text for w in ("suggest", "ideas", "brainstorm", "what should i build")
+    ):
+        nlpish = "nlp" in text or "natural language" in text
+        ideas = (
+            [
+                "1) Aspect-based sentiment analysis on course reviews — train/fine-tune a classifier and ship a small Streamlit demo.",
+                "2) FAQ chatbot over your lecture notes using embeddings + a lightweight retrieval layer (no heavy infra).",
+                "3) Named-entity highlighter for research abstracts with a clear evaluation split and error analysis.",
+            ]
+            if nlpish
+            else [
+                "1) A scoped MVP solving one painful workflow for a single user persona.",
+                "2) A CLI or small web tool that automates a repetitive task you already do weekly.",
+                "3) A data pipeline + dashboard for one dataset you can finish in a few weeks.",
+            ]
+        )
+        reply = (
+            "Here are practical directions you can finish as a solo student project:\n"
+            + "\n".join(ideas)
+            + "\nWhich of these fits your course constraints and timeline best?"
+        )
+        if not (project_snapshot.get("objective") or "") and len(user_message) > 20:
+            patch.objective = user_message.strip()[:500]
+        return PrimaryAnalysis(
+            reply=reply,
+            intent="initial_idea",
+            findings=[],
+            most_important_question="Which idea should we refine first?",
+            state_patch=_finalize(patch),
+        )
+
+    risk_signals = (
+        "kubernetes",
+        "kafka",
+        "microservices",
+        "deadline",
+        "tomorrow",
+        "critique",
+        "grill",
+        "must be offline",
+        "must sync",
+        "no internet",
+        "real-time cloud",
+        "marketplace",
+        "platform",
+    )
+    if mode in {"explore", "build"} and not any(w in text for w in risk_signals):
+        if not (project_snapshot.get("objective") or "") and len(user_message) > 40:
+            patch.objective = user_message.strip()[:500]
+            if "windows" in text and "log" in text:
+                patch.problem_statement = "Analyze Windows event logs"
+            if "investigation" in text:
+                patch.add_preferences = ["Investigation assistance over real-time detection"]
+        if mode == "build":
+            obj = project_snapshot.get("objective") or patch.objective or "the project"
+            return PrimaryAnalysis(
+                reply=(
+                    f"Using the established context for {obj}: implement only the agreed MVP. "
+                    "I'll keep architecture decisions fixed and list acceptance criteria. "
+                    "If critical requirements are still open, say so before coding."
+                ),
+                intent="general",
+                findings=[],
+                state_patch=_finalize(patch),
+            )
+        return PrimaryAnalysis(
+            reply=(
+                "That makes sense. I can help you shape the idea, plan options, "
+                "or run a Review when you want pushback. "
+                "What's the main outcome you need for this course?"
+            ),
+            intent="general",
+            findings=[],
+            most_important_question="What's the main outcome you need?",
+            state_patch=_finalize(patch),
         )
 
     # Detect injection attempts — do not obey them
@@ -244,7 +404,7 @@ def heuristic_primary(
         intent=intent,
         findings=findings,
         most_important_question=question,
-        state_patch=patch,
+        state_patch=_finalize(patch),
     )
 
 
