@@ -160,6 +160,84 @@ SCHEMA_STATEMENTS = (
         FOREIGN KEY(user_id) REFERENCES users(id)
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS roi_events (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL,
+        project_id TEXT,
+        user_id TEXT,
+        event_type TEXT NOT NULL,
+        payload_json TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(org_id) REFERENCES organizations(id)
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_roi_events_org
+    ON roi_events(org_id, created_at)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS finding_comments (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        finding_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        body TEXT NOT NULL,
+        mentions_json TEXT,
+        created_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_finding_comments_finding
+    ON finding_comments(project_id, finding_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS org_rejected_approaches (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL,
+        approach TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        source_project_id TEXT,
+        created_by TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_org_rejected_org
+    ON org_rejected_approaches(org_id)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT,
+        payload_json TEXT,
+        created_at TEXT NOT NULL,
+        read_at TEXT
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_notifications_user
+    ON notifications(user_id, created_at)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS org_playbooks (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        vertical TEXT,
+        content_text TEXT NOT NULL,
+        skill_id TEXT,
+        created_by TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
 )
 
 

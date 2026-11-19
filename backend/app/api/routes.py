@@ -594,6 +594,38 @@ def update_finding(
             before=before,
             after={"status": finding.status, "note": finding.resolution_note},
         )
+        status_val = (
+            finding.status.value
+            if hasattr(finding.status, "value")
+            else str(finding.status)
+        )
+        if status_val in ("resolved", "accepted_risk"):
+            store.record_roi_event(
+                org_id=org_id,
+                event_type="finding_blocked_from_impl",
+                project_id=project_id,
+                user_id=user.id if user else None,
+                payload={
+                    "finding_id": finding_id,
+                    "status": status_val,
+                    "project_id": project_id,
+                },
+            )
+        if (
+            (finding.kind or "").lower() == "blocking_contradiction"
+            and status_val == "open"
+            and before.get("status") != "open"
+        ):
+            pass  # notifications on create handled in chat path
+        # Promote project rejected approaches into org library
+        for rej in project.rejected_approaches or []:
+            store.upsert_org_rejected_approach(
+                org_id=org_id,
+                approach=rej.approach,
+                reason=rej.reason,
+                source_project_id=project_id,
+                created_by=user.id if user else None,
+            )
     return finding
 
 
@@ -638,9 +670,10 @@ def get_readiness(
     project_id: str,
     repo: ProjectRepository = Depends(get_repository),
     settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
     user: UserRecord | None = Depends(require_user_when_free_tier),
 ) -> ReadinessResult:
-    project = _assert_project_access(repo, project_id, user, settings)
+    project = _assert_project_access(repo, project_id, user, settings, store=store)
     return assess_readiness(project)
 
 
@@ -665,6 +698,22 @@ def generate_specification(
             target_type="project",
             target_id=project_id,
             after={"ready": result.readiness.ready if result.readiness else None},
+        )
+        ready = bool(
+            result.readiness
+            and (result.readiness.implementation_ready or result.readiness.ready)
+        )
+        store.record_roi_event(
+            org_id=org_id,
+            event_type="readiness_pass" if ready else "readiness_fail",
+            project_id=project_id,
+            user_id=user.id if user else None,
+            payload={
+                "project_id": project_id,
+                "score_pct": result.readiness.score_pct if result.readiness else None,
+                "ready": ready,
+                "via": "spec_export",
+            },
         )
     return result
 
@@ -910,3 +959,205 @@ def admin_metrics(
     if not settings.is_configured_admin(user.email):
         raise HTTPException(status_code=403, detail="Admin only")
     return store.admin_usage_metrics()
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: ROI, collaboration, playbooks
+# ---------------------------------------------------------------------------
+
+
+@router.get("/orgs/{org_id}/roi")
+def org_roi(
+    org_id: str,
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord = Depends(require_authenticated_user),
+) -> dict:
+    role = store.get_membership_role(org_id, user.id)
+    if role is None and not settings.is_configured_admin(user.email):
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return store.org_roi_dashboard(org_id)
+
+
+@router.post("/orgs/{org_id}/roi/agent-runs")
+def report_roi_agent_runs(
+    org_id: str,
+    body: dict = Body(...),
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord = Depends(require_authenticated_user),
+) -> dict:
+    role = store.get_membership_role(org_id, user.id)
+    if role is None and not settings.is_configured_admin(user.email):
+        raise HTTPException(status_code=404, detail="Organization not found")
+    project_id = str(body.get("project_id") or "")
+    if not project_id:
+        raise HTTPException(status_code=400, detail="project_id required")
+    eid = store.report_agent_runs(
+        org_id=org_id,
+        project_id=project_id,
+        user_id=user.id,
+        runs_before=int(body.get("runs_before") or 0),
+        runs_after=int(body.get("runs_after") or 0),
+        notes=str(body.get("notes") or "") or None,
+    )
+    return {"id": eid, "dashboard": store.org_roi_dashboard(org_id)}
+
+
+@router.get("/projects/{project_id}/findings/{finding_id}/comments")
+def get_finding_comments(
+    project_id: str,
+    finding_id: str,
+    repo: ProjectRepository = Depends(get_repository),
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord | None = Depends(require_user_when_free_tier),
+) -> dict:
+    _assert_project_access(repo, project_id, user, settings, store=store)
+    return {
+        "comments": store.list_finding_comments(
+            project_id=project_id, finding_id=finding_id
+        )
+    }
+
+
+@router.post("/projects/{project_id}/findings/{finding_id}/comments")
+def post_finding_comment(
+    project_id: str,
+    finding_id: str,
+    body: dict = Body(...),
+    repo: ProjectRepository = Depends(get_repository),
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord = Depends(require_authenticated_user),
+) -> dict:
+    _assert_project_access(repo, project_id, user, settings, store=store)
+    org_id = repo.get_org_id(project_id) if hasattr(repo, "get_org_id") else None
+    if not org_id:
+        org_id = store.ensure_user_org(user.id, user.email)
+    text = str(body.get("body") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="body required")
+    mentions = body.get("mentions") or []
+    if not isinstance(mentions, list):
+        mentions = []
+    comment = store.add_finding_comment(
+        org_id=org_id,
+        project_id=project_id,
+        finding_id=finding_id,
+        user_id=user.id,
+        body=text,
+        mention_user_ids=[str(m) for m in mentions],
+    )
+    return comment
+
+
+@router.get("/orgs/{org_id}/rejected-approaches")
+def get_org_rejected(
+    org_id: str,
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord = Depends(require_authenticated_user),
+) -> dict:
+    role = store.get_membership_role(org_id, user.id)
+    if role is None and not settings.is_configured_admin(user.email):
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return {"items": store.list_org_rejected_approaches(org_id)}
+
+
+@router.post("/orgs/{org_id}/rejected-approaches")
+def post_org_rejected(
+    org_id: str,
+    body: dict = Body(...),
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord = Depends(require_authenticated_user),
+) -> dict:
+    role = store.get_membership_role(org_id, user.id)
+    if role is None and not settings.is_configured_admin(user.email):
+        raise HTTPException(status_code=404, detail="Organization not found")
+    approach = str(body.get("approach") or "").strip()
+    reason = str(body.get("reason") or "").strip()
+    if not approach or not reason:
+        raise HTTPException(status_code=400, detail="approach and reason required")
+    return store.upsert_org_rejected_approach(
+        org_id=org_id,
+        approach=approach,
+        reason=reason,
+        source_project_id=str(body.get("source_project_id") or "") or None,
+        created_by=user.id,
+    )
+
+
+@router.get("/notifications")
+def get_notifications(
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord = Depends(require_authenticated_user),
+    limit: int = 50,
+) -> dict:
+    return {"items": store.list_notifications(user.id, limit=limit)}
+
+
+@router.post("/orgs/{org_id}/playbooks")
+def upload_org_playbook(
+    org_id: str,
+    body: dict = Body(...),
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+    registry: SkillRegistry = Depends(get_skill_registry),
+    user: UserRecord = Depends(require_authenticated_user),
+) -> dict:
+    """Upload an internal playbook → draft Grill skill for the org."""
+    from app.skills.verticals import playbook_to_skill
+
+    role = store.get_membership_role(org_id, user.id)
+    if role not in ("admin", "member") and not settings.is_configured_admin(user.email):
+        raise HTTPException(status_code=403, detail="Members/admins only")
+    title = str(body.get("title") or "").strip()
+    content = str(body.get("content") or "").strip()
+    vertical = str(body.get("vertical") or "").strip() or None
+    if not title or not content:
+        raise HTTPException(status_code=400, detail="title and content required")
+    skill = playbook_to_skill(
+        org_id=org_id, title=title, content=content, vertical=vertical
+    )
+    saved = registry.save(skill)
+    pb = store.save_org_playbook(
+        org_id=org_id,
+        title=title,
+        content_text=content,
+        vertical=vertical,
+        created_by=user.id,
+        skill_id=saved.id,
+    )
+    store.emit_audit(
+        org_id=org_id,
+        user_id=user.id,
+        action="playbook.uploaded",
+        target_type="playbook",
+        target_id=pb["id"],
+        after={"skill_id": saved.id, "title": title},
+    )
+    return {"playbook": pb, "skill": {"id": saved.id, "slug": saved.slug, "status": saved.status.value}}
+
+
+@router.get("/skills/verticals")
+def list_vertical_packs(
+    registry: SkillRegistry = Depends(get_skill_registry),
+) -> dict:
+    from app.skills.verticals import VERTICAL_SLUGS
+
+    items = []
+    for slug in VERTICAL_SLUGS:
+        skill = registry.get_by_slug(slug)
+        if skill:
+            items.append(
+                {
+                    "id": skill.id,
+                    "slug": skill.slug,
+                    "name": skill.name,
+                    "description": skill.description,
+                    "status": skill.status.value,
+                }
+            )
+    return {"items": items}

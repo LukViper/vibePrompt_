@@ -86,6 +86,16 @@ cd frontend
 npm test
 ```
 
+### CLI (local readiness gate)
+
+```bash
+cd backend
+python -m app.cli review --project ../path/to/app --fail-on-block
+# Live: add --api-base http://127.0.0.1:8000/api/v1 --token "$TOKEN"
+```
+
+See [docs/PHASE2_COMMERCIAL.md](docs/PHASE2_COMMERCIAL.md) for ROI, collab, vertical packs, and integration stubs.
+
 ### Vercel (UI)
 
 The SPA deploys from the repo root via `vercel.json`. Host the FastAPI API separately (compose), set `VITE_API_BASE_URL` / optional Supabase `VITE_*` in Vercel, and put the Vercel origin in API `CORS_ORIGINS`. The SPA mints a short-lived **guest JWT** (`POST /api/auth/guest`) — do **not** bundle `API_SECRET` in the frontend. Details: `docs/DEPLOYMENT_AND_RECOVERY.md`.

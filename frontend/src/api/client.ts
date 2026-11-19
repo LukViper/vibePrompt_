@@ -347,4 +347,30 @@ export const api = {
     request<Record<string, unknown>>(`/knowledge/skills/${id}/evaluate`, {
       method: "POST",
     }),
+  orgMe: () =>
+    request<{ org_id: string; plan: string; role: string | null }>("/orgs/me"),
+  orgRoi: (orgId: string) =>
+    request<{
+      findings_blocked_from_implementation: number;
+      readiness_gate_passes: number;
+      readiness_gate_pass_rate: number;
+      estimated_tokens_saved: number;
+      agent_runs_before: number;
+      agent_runs_after: number;
+    }>(`/orgs/${orgId}/roi`),
+  reportAgentRuns: (
+    orgId: string,
+    body: {
+      project_id: string;
+      runs_before: number;
+      runs_after: number;
+      notes?: string;
+    }
+  ) =>
+    request<{ id: string; dashboard: Record<string, unknown> }>(
+      `/orgs/${orgId}/roi/agent-runs`,
+      { method: "POST", body: JSON.stringify(body) }
+    ),
+  listVerticalSkills: () =>
+    request<{ items: SkillSummary[] }>("/skills/verticals"),
 };

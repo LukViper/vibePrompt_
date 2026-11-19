@@ -7,6 +7,7 @@ from threading import Lock
 from app.knowledge.store import KnowledgeStore
 from app.skills.builtin import MODE_SKILL_SLUGS, builtin_skills
 from app.skills.models import SkillPackage, SkillStatus
+from app.skills.verticals import vertical_skill_packs
 
 
 class SkillRegistry:
@@ -18,7 +19,7 @@ class SkillRegistry:
     def ensure_builtins(self) -> None:
         with self._lock:
             existing = {s.slug for s in self.store.list_skills()}
-            for skill in builtin_skills():
+            for skill in [*builtin_skills(), *vertical_skill_packs()]:
                 if skill.slug not in existing:
                     self.store.upsert_skill(skill)
 

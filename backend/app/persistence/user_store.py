@@ -1064,3 +1064,179 @@ class UserStore:
         if not row:
             return None
         return row["totp_secret"], bool(row["enabled"])
+
+    # ----------------------------------------------------------- ROI / collab
+    def record_roi_event(
+        self,
+        *,
+        org_id: str,
+        event_type: str,
+        project_id: str | None = None,
+        user_id: str | None = None,
+        payload: dict[str, Any] | None = None,
+    ) -> str:
+        from app.roi.metrics import record_event
+
+        with self._lock, self._connect() as conn:
+            eid = record_event(
+                conn,
+                org_id=org_id,
+                event_type=event_type,
+                project_id=project_id,
+                user_id=user_id,
+                payload=payload,
+            )
+            conn.commit()
+            return eid
+
+    def report_agent_runs(
+        self,
+        *,
+        org_id: str,
+        project_id: str,
+        user_id: str | None,
+        runs_before: int,
+        runs_after: int,
+        notes: str | None = None,
+    ) -> str:
+        from app.roi.metrics import report_agent_runs
+
+        with self._lock, self._connect() as conn:
+            eid = report_agent_runs(
+                conn,
+                org_id=org_id,
+                project_id=project_id,
+                user_id=user_id,
+                runs_before=runs_before,
+                runs_after=runs_after,
+                notes=notes,
+            )
+            conn.commit()
+            return eid
+
+    def org_roi_dashboard(self, org_id: str) -> dict[str, Any]:
+        from app.roi.metrics import compute_org_roi, snapshot_dict
+
+        with self._lock, self._connect() as conn:
+            return snapshot_dict(compute_org_roi(conn, org_id))
+
+    def add_finding_comment(
+        self,
+        *,
+        org_id: str,
+        project_id: str,
+        finding_id: str,
+        user_id: str,
+        body: str,
+        mention_user_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        from app.collab.store import add_finding_comment
+
+        with self._lock, self._connect() as conn:
+            row = add_finding_comment(
+                conn,
+                org_id=org_id,
+                project_id=project_id,
+                finding_id=finding_id,
+                user_id=user_id,
+                body=body,
+                mention_user_ids=mention_user_ids,
+            )
+            conn.commit()
+            return row
+
+    def list_finding_comments(
+        self, *, project_id: str, finding_id: str
+    ) -> list[dict[str, Any]]:
+        from app.collab.store import list_finding_comments
+
+        with self._lock, self._connect() as conn:
+            return list_finding_comments(
+                conn, project_id=project_id, finding_id=finding_id
+            )
+
+    def upsert_org_rejected_approach(
+        self,
+        *,
+        org_id: str,
+        approach: str,
+        reason: str,
+        source_project_id: str | None = None,
+        created_by: str | None = None,
+    ) -> dict[str, Any]:
+        from app.collab.store import upsert_org_rejected_approach
+
+        with self._lock, self._connect() as conn:
+            row = upsert_org_rejected_approach(
+                conn,
+                org_id=org_id,
+                approach=approach,
+                reason=reason,
+                source_project_id=source_project_id,
+                created_by=created_by,
+            )
+            conn.commit()
+            return row
+
+    def list_org_rejected_approaches(self, org_id: str) -> list[dict[str, Any]]:
+        from app.collab.store import list_org_rejected_approaches
+
+        with self._lock, self._connect() as conn:
+            return list_org_rejected_approaches(conn, org_id=org_id)
+
+    def list_notifications(self, user_id: str, *, limit: int = 50) -> list[dict[str, Any]]:
+        from app.collab.store import list_notifications
+
+        with self._lock, self._connect() as conn:
+            return list_notifications(conn, user_id=user_id, limit=limit)
+
+    def list_org_member_ids(self, org_id: str) -> list[str]:
+        with self._lock, self._connect() as conn:
+            rows = conn.execute(
+                "SELECT user_id FROM org_memberships WHERE org_id = ?",
+                (org_id,),
+            ).fetchall()
+        return [r["user_id"] for r in rows]
+
+    def save_org_playbook(
+        self,
+        *,
+        org_id: str,
+        title: str,
+        content_text: str,
+        vertical: str | None,
+        created_by: str | None,
+        skill_id: str | None,
+    ) -> dict[str, Any]:
+        from uuid import uuid4
+
+        pid = f"pb_{uuid4().hex[:16]}"
+        now = _iso()
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO org_playbooks (
+                    id, org_id, title, vertical, content_text, skill_id,
+                    created_by, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    pid,
+                    org_id,
+                    title.strip(),
+                    vertical,
+                    content_text,
+                    skill_id,
+                    created_by,
+                    now,
+                    now,
+                ),
+            )
+            conn.commit()
+        return {
+            "id": pid,
+            "org_id": org_id,
+            "title": title.strip(),
+            "vertical": vertical,
+            "skill_id": skill_id,
+        }

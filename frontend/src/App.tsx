@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { api } from "./api/client";
 import { useAuth } from "./auth/AuthContext";
 import { Composer } from "./components/Composer";
 import { ContextPanel } from "./components/ContextPanel";
@@ -7,6 +8,7 @@ import { MessageBubble } from "./components/MessageBubble";
 import { AgentPromptModal } from "./components/AgentPromptModal";
 import { ByokModal, CreateProjectModal, SpecModal } from "./components/Modals";
 import { KnowledgeLibrary } from "./components/KnowledgeLibrary";
+import { RoiStrip, type RoiDashboard } from "./components/RoiStrip";
 import { Sidebar } from "./components/Sidebar";
 import { Welcome } from "./components/Welcome";
 import { useByok } from "./hooks/useByok";
@@ -32,6 +34,7 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNav, setMobileNav] = useState<"none" | "left" | "right">("none");
   const [theme, setTheme] = useState<ThemeMode>(readTheme);
+  const [roi, setRoi] = useState<RoiDashboard | null>(null);
 
   const {
     freeTier,
@@ -88,6 +91,17 @@ function App() {
       } catch (e) {
         setError(String(e));
       }
+      if (user) {
+        try {
+          const me = await api.orgMe();
+          const dash = await api.orgRoi(me.org_id);
+          setRoi(dash);
+        } catch {
+          setRoi(null);
+        }
+      } else {
+        setRoi(null);
+      }
     };
     void boot();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- boot on auth identity change
@@ -129,6 +143,8 @@ function App() {
           Offline heuristic mode — not live adversarial review.
         </div>
       )}
+
+      {user && roi && <RoiStrip roi={roi} />}
 
       <header className="top-bar">
         <div className="top-bar-crumb">
