@@ -99,7 +99,8 @@ function authHeaders(extra?: HeadersInit): HeadersInit {
   };
 }
 
-function parseError(res: Response, detail: string): ApiError {
+/** Exported for unit tests — maps HTTP failures to BYOK/quota UX flags. */
+export function parseError(res: Response, detail: string): ApiError {
   let message = detail || `Request failed (${res.status})`;
   let code: string | undefined;
   try {

@@ -202,3 +202,26 @@ See `docs/DEPLOYMENT_VERIFICATION_RESULTS.md` and:
 ```bash
 python backend/scripts/deployment_verification.py
 ```
+
+## PostgreSQL (production) — backup & RTO/RPO
+
+**SQLite backup scripts above are local-dev / legacy single-node only.**
+
+For production on Neon (or RDS):
+
+| Item | Target |
+|---|---|
+| RPO | **24-hour** until Postgres HA is proven (Neon PITR typically better; treat 24h as the contractual floor) |
+| RTO | Single API node recovery: restore DB + redeploy API within a maintenance window |
+| Backups | Enable Neon **point-in-time recovery** (PITR); keep provider automated daily backups on |
+| Drill | **Quarterly restore test** (even if manual): restore a branch/copy, run `GET /api/v1/health/ready`, login smoke |
+
+```bash
+# Apply schema once per new database
+psql "$DATABASE_URL" -f backend/app/persistence/postgres_schema.sql
+
+# Readiness (DB + provider hints)
+curl -fsS "$API/api/v1/health/ready"
+```
+
+Document the last successful restore drill date in your runbook when you perform it.

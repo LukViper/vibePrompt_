@@ -72,6 +72,56 @@ describe("ContextPanel finding resolution", () => {
     );
   });
 
+  it("shows readiness progress and keeps export blocked when not ready", () => {
+    render(
+      <ContextPanel
+        readiness={readiness}
+        findings={[]}
+        decisions={[]}
+        techStack={[]}
+        rejectedApproaches={[]}
+        busy={false}
+        onUpdateFinding={vi.fn()}
+        onExportAgent={vi.fn()}
+      />
+    );
+    expect(screen.getAllByText(/40%/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Missing tech stack/i).length).toBeGreaterThan(0);
+    const exportBtns = screen.getAllByRole("button", { name: /Export Agent Spec/i });
+    expect(exportBtns.every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+  });
+
+  it("enables export when implementation ready", () => {
+    const ready: ReadinessResult = {
+      ready: true,
+      status: "ready",
+      blockers: [],
+      warnings: [],
+      missing_essentials: [],
+      accepted_risk_summaries: [],
+      unblock_actions: [],
+      score_pct: 100,
+      implementation_ready: true,
+    };
+    render(
+      <ContextPanel
+        readiness={ready}
+        findings={[]}
+        decisions={[]}
+        techStack={["SQLite"]}
+        rejectedApproaches={[]}
+        busy={false}
+        onUpdateFinding={vi.fn()}
+        onExportAgent={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/Unlocked — Cursor/i)).toBeInTheDocument();
+    const exportBtn = screen.getAllByRole("button", {
+      name: /Export Agent Spec/i,
+    })[0];
+    expect(exportBtn).toBeEnabled();
+  });
+
   it("shows locked and rejected stack badges", () => {
     render(
       <ContextPanel

@@ -18,6 +18,7 @@ type Options = {
   setLimitations: (v: string[]) => void;
   setProviderStatus: (v: string | null) => void;
   setFundingSource: (v: string | null) => void;
+  setOfflineReview: (v: boolean) => void;
   setFreeTier: (v: FreeTierStatus | null) => void;
   refreshFreeTier: () => Promise<void>;
   refreshList: () => Promise<void>;
@@ -51,6 +52,7 @@ export function useChat({
   setLimitations,
   setProviderStatus,
   setFundingSource,
+  setOfflineReview,
   setFreeTier,
   refreshFreeTier,
   refreshList,
@@ -87,6 +89,7 @@ export function useChat({
       setLimitations(res.review_limitations);
       setProviderStatus(res.provider_status);
       setFundingSource(res.funding_source);
+      setOfflineReview(Boolean(res.offline_review));
       if (res.free_tier) setFreeTier(res.free_tier);
       else await refreshFreeTier();
       await refreshList();

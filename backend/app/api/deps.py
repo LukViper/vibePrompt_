@@ -70,11 +70,13 @@ def get_engine(
 
 _PUBLIC_API_SUFFIXES = (
     "/health",
+    "/health/ready",
     "/auth/config",
     "/auth/guest",
     "/auth/register",
     "/auth/login",
     "/auth/google",
+    "/billing/webhook",
 )
 
 

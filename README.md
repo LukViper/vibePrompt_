@@ -17,8 +17,8 @@ Modular monolith:
 | `backend/app/grill/` | Review policy, finding lifecycle, critic reconciliation |
 | `backend/app/projects/` | Structured project state |
 | `backend/app/compilation/` | Deterministic readiness gate + Markdown specification compiler |
-| `backend/app/persistence/` | SQLite repository (swappable) |
-| `backend/app/api/` | FastAPI HTTP API |
+| `backend/app/persistence/` | SQLite (local-dev) / PostgreSQL (prod via Neon) |
+| `backend/app/api/` | FastAPI HTTP API (`/api/v1` + `/api` alias) |
 | `backend/app/knowledge/` | Book discovery, legal acquisition, processing pipeline |
 | `backend/app/skills/` | Skill registry, Book-to-Skill drafts, mode-scoped retrieval |
 | `frontend/` | React + TypeScript + Vite UI |
@@ -35,7 +35,15 @@ Modular monolith:
 - Node.js 20+
 - Optional: `GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, or BYOK for **live** Grill quality
 
-Without provider keys the backend uses an **offline heuristic primary** — fine for UI/API demos and tests, **not** a substitute for adversarial LLM review. Prefer `DEMO_MODE=true` or `python -m app --demo` when you want that limitation explicit.
+Without provider keys the backend uses an **offline heuristic primary** — fine for UI/API demos and tests, **not** a substitute for adversarial LLM review. Prefer `DEMO_MODE=true` or `python -m app --demo` when you want that limitation explicit. The SPA shows a persistent banner: **Offline heuristic mode — not live adversarial review.**
+
+### Git guards
+
+```bash
+git config core.hooksPath .githooks   # enables scripts/pre-push-secret-scan.sh
+```
+
+Never commit `backend/.env`, real `JWT_SECRET` / `CREDENTIALS_ENCRYPTION_KEY`, or live API keys. Use `.env.example` placeholders only. CI runs pytest + `tsc --noEmit` + vitest on push/PR.
 
 ## Quick start
 

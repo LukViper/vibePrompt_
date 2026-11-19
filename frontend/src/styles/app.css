@@ -144,9 +144,23 @@ a:focus-visible {
   background: var(--canvas);
 }
 
+.app > .offline-banner {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  z-index: 5;
+}
+
 .app > .top-bar {
   grid-column: 1 / -1;
   grid-row: 1;
+}
+
+.app:has(> .offline-banner) {
+  grid-template-rows: auto var(--topbar-h) minmax(0, 1fr);
+}
+
+.app:has(> .offline-banner) > .top-bar {
+  grid-row: 2;
 }
 
 .app > .sidebar-shell {
@@ -162,6 +176,23 @@ a:focus-visible {
 .app > .context-shell {
   grid-column: 3;
   grid-row: 2;
+}
+
+.app:has(> .offline-banner) > .sidebar-shell,
+.app:has(> .offline-banner) > .main,
+.app:has(> .offline-banner) > .context-shell {
+  grid-row: 3;
+}
+
+.offline-banner {
+  padding: 0.45rem 0.85rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--warn, #c9a227) 22%, var(--panel));
+  border-bottom: 1px solid var(--hairline);
 }
 
 .app.panel-open {

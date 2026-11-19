@@ -130,10 +130,27 @@ class Settings(BaseSettings):
     context_max_summary_chars: int = 4_000
 
     # Persistence
+    # sqlite = local-dev only; postgres via DATABASE_URL for staging/production (Neon).
+    database_backend: str = "sqlite"
+    database_url: str = ""
     database_path: str = "./data/vibeprompt.db"
     knowledge_upload_dir: str = "./data/knowledge/uploads"
     skills_dir: str = "./data/skills"
     knowledge_max_upload_bytes: int = 40 * 1024 * 1024
+
+    # Stripe billing (test-mode keys in .env; never commit live secrets)
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_pro: str = ""
+    stripe_price_team: str = ""
+    stripe_success_url: str = "http://localhost:5173/?billing=success"
+    stripe_cancel_url: str = "http://localhost:5173/?billing=cancel"
+
+    # OpenTelemetry (optional exporter endpoint)
+    otel_service_name: str = "vibeprompt-api"
+    otel_exporter_otlp_endpoint: str = ""
+    cost_usd_per_1k_input_tokens: float = 0.00015
+    cost_usd_per_1k_output_tokens: float = 0.0006
     # Comma-separated admin emails for Knowledge Library. If empty and free tier
     # is off, any authenticated user may administer (local single-tenant). If free
     # tier is on, ADMIN_EMAILS must be set.
@@ -263,6 +280,16 @@ class Settings(BaseSettings):
             errors.append("CORS_ORIGINS must list explicit SPA origin(s) in production")
         if any(o.strip() == "*" for o in origins):
             errors.append("CORS_ORIGINS must not include wildcard '*' in production")
+        backend = (self.database_backend or "sqlite").strip().lower()
+        url = (self.database_url or "").strip()
+        using_postgres = backend == "postgres" or url.startswith(
+            ("postgres://", "postgresql://")
+        )
+        if not using_postgres:
+            errors.append(
+                "Production requires PostgreSQL (set DATABASE_URL to Neon/RDS/Supabase). "
+                "SQLite is local-dev only."
+            )
         return errors
 
     def assert_secure_for_runtime(self) -> None:
@@ -273,6 +300,16 @@ class Settings(BaseSettings):
                 "Refusing to start in production with insecure configuration:\n- "
                 + "\n- ".join(errors)
             )
+
+    def resolved_database(self) -> tuple[str, str]:
+        from app.persistence.db import resolve_backend
+
+        backend, target = resolve_backend(
+            database_backend=self.database_backend,
+            database_url=self.database_url,
+            database_path=self.database_path,
+        )
+        return backend, target
 
     @property
     def supabase_configured(self) -> bool:

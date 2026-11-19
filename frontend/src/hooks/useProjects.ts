@@ -21,6 +21,7 @@ export function useProjects({
   const [limitations, setLimitations] = useState<string[]>([]);
   const [providerStatus, setProviderStatus] = useState<string | null>(null);
   const [fundingSource, setFundingSource] = useState<string | null>(null);
+  const [offlineReview, setOfflineReview] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [newObjective, setNewObjective] = useState("");
@@ -64,6 +65,7 @@ export function useProjects({
       setLimitations([]);
       setProviderStatus(null);
       setFundingSource(null);
+      setOfflineReview(false);
       setMobileNav("none");
     },
     [setMobileNav]
@@ -147,6 +149,8 @@ export function useProjects({
     setProviderStatus,
     fundingSource,
     setFundingSource,
+    offlineReview,
+    setOfflineReview,
     showCreate,
     setShowCreate,
     newName,

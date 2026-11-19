@@ -101,6 +101,49 @@ class GrillEngine:
         idempotency_key: str | None = None,
         behavioural_mode: BehaviouralMode | None = None,
     ) -> ChatResponse:
+        from app.observability.tracing import (
+            Timer,
+            estimate_cost_usd,
+            log_generation_cost,
+            new_trace_id,
+            span,
+        )
+
+        timer = Timer()
+        trace_id = new_trace_id()
+        with span(
+            "grill.handle_message",
+            project_id=project_id,
+            user_id=user_id or "",
+            trace_id=trace_id,
+        ):
+            return await self._handle_message_inner(
+                project_id,
+                content,
+                user_id=user_id,
+                idempotency_key=idempotency_key,
+                behavioural_mode=behavioural_mode,
+                trace_id=trace_id,
+                timer=timer,
+                estimate_cost_usd=estimate_cost_usd,
+                log_generation_cost=log_generation_cost,
+                span=span,
+            )
+
+    async def _handle_message_inner(
+        self,
+        project_id: str,
+        content: str,
+        *,
+        user_id: str | None = None,
+        idempotency_key: str | None = None,
+        behavioural_mode: BehaviouralMode | None = None,
+        trace_id: str = "",
+        timer=None,
+        estimate_cost_usd=None,
+        log_generation_cost=None,
+        span=None,
+    ) -> ChatResponse:
         project = self.repo.get(project_id)
         if project is None:
             raise KeyError(f"Project {project_id} not found")
@@ -204,6 +247,9 @@ class GrillEngine:
         critic_available = bool(
             critic and critic.is_available() and self.settings.critic_enabled
         )
+        if span is not None:
+            with span("grill.policy_decision", mode=mode.value):
+                pass
         policy = decide_review_policy(
             message=content,
             project=project,
@@ -563,6 +609,30 @@ class GrillEngine:
             free_tier_status = build_status(
                 self.settings, self.user_store, user_id
             ).model_dump()
+
+        latency_ms = timer.ms() if timer is not None else 0.0
+        cost = 0.0
+        if estimate_cost_usd is not None:
+            cost = float(
+                estimate_cost_usd(
+                    self.settings,
+                    input_tokens=None,
+                    output_tokens=None,
+                )
+            )
+        if log_generation_cost is not None:
+            log_generation_cost(
+                trace_id=trace_id,
+                provider=metrics.provider_used,
+                model=route_model,
+                latency_ms=latency_ms,
+                input_tokens=None,
+                output_tokens=None,
+                cost_usd=cost,
+                success=not metrics.offline_review or bool(metrics.provider_used),
+                project_id=project_id,
+                user_id=user_id,
+            )
 
         return ChatResponse(
             message=assistant,

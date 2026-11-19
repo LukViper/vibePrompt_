@@ -187,10 +187,12 @@ def resolve_inference(
     remaining = int(allocation["generations_allocated"]) - int(
         allocation["generations_used"]
     )
-    if remaining <= 0:
+    org_id = store.get_default_org_id(user_id)
+    paid_unlimited = store.org_allows_unlimited(org_id)
+    if remaining <= 0 and not paid_unlimited:
         raise InferenceRouteError(
             InferenceRouteErrorCode.FREE_TIER_EXHAUSTED,
-            "Your free generations are exhausted. Configure your own API key (BYOK) to continue.",
+            "Your free generations are exhausted. Upgrade to Pro/Team or configure BYOK.",
         )
 
     if not settings.qwen_configured or settings.free_tier_provider != "qwen":

@@ -1,23 +1,33 @@
 # Datastore & scale posture
 
-VibePrompt v1 is an **evidence-backed single-node beta**.
+## Local development: SQLite only
 
-## Current: SQLite WAL
+- Default: `DATABASE_BACKEND=sqlite` + `DATABASE_PATH=./data/vibeprompt.db`
+- Persistence lives under `backend/app/persistence/`
+- **SQLite is not for production** — single-writer, no multi-tenant SaaS scale
 
-- Persistence lives under `backend/app/persistence/` (project + user stores).
-- Prefer **SQLite WAL** and treat the process as a **single-writer** boundary.
-- This is appropriate for local demos, single-tenant beta, and one API node behind the Vercel SPA.
+## Production / staging: PostgreSQL (Neon)
 
-## Not supported today
+- Set `DATABASE_URL=postgresql://...` (Neon, RDS, Supabase, Railway)
+- Optionally `DATABASE_BACKEND=postgres`
+- Apply [`backend/app/persistence/postgres_schema.sql`](../backend/app/persistence/postgres_schema.sql)
+- `APP_ENV=production` **refuses to start on SQLite**
 
-- Multi-writer horizontal scale
-- Multi-tenant public SaaS with shared DB writers across many API replicas
+## Multi-tenancy
 
-## Migration path (when needed)
+- `organizations` + `org_memberships` (roles: `admin` | `member` | `viewer`)
+- Projects carry `org_id` + `owner_id`; soft-delete via `deleted_at`
+- Queries enforce org isolation (`WHERE org_id = …` / membership checks)
+- Personal org auto-created on signup
 
-1. Keep the repository interfaces in `ProjectRepository` / `UserStore` stable.
-2. Replace SQLite SQL with PostgreSQL (connection pool, migrations, WAL-equivalent isolation).
-3. Re-run authorization, guest/BYOK, and knowledge-library tests against the new store.
-4. Update product copy only after multi-writer is proven — until then, keep “single-node beta” language.
+## Not supported yet
 
-Do not market VibePrompt as horizontally scaled multi-tenant until that path is implemented and tested.
+- Multi-writer horizontal scale across many API replicas without managed Postgres
+- Marketing claims of “horizontally scaled multi-tenant SaaS” until HA is proven
+
+## Migration path
+
+1. Keep repository interfaces stable (`ProjectRepository` / `UserStore`).
+2. Provision Neon; apply `postgres_schema.sql`.
+3. Point `DATABASE_URL` at Neon; re-run authz / guest / BYOK tests against Postgres.
+4. Enable Stripe + audit for Team plans.

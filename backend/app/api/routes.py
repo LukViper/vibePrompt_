@@ -91,10 +91,11 @@ def _assert_project_access(
     project_id: str,
     user: UserRecord | None,
     settings: Settings,
+    store: UserStore | None = None,
 ) -> ProjectState:
     from app.auth.authorization import assert_project_access
 
-    return assert_project_access(repo, project_id, user, settings)
+    return assert_project_access(repo, project_id, user, settings, store=store)
 
 
 # ---------------------------------------------------------------------------
@@ -369,7 +370,7 @@ async def upsert_byok(
     settings: Settings = Depends(get_settings),
 ) -> ByokConfigPublic:
     try:
-        return await validate_and_save_byok(
+        result = await validate_and_save_byok(
             store=store,
             settings=settings,
             user_id=user.id,
@@ -379,6 +380,16 @@ async def upsert_byok(
         raise HTTPException(status_code=400, detail=exc.message) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    org_id = store.ensure_user_org(user.id, user.email)
+    store.emit_audit(
+        org_id=org_id,
+        user_id=user.id,
+        action="byok.key_rotation",
+        target_type="provider_config",
+        target_id=body.provider,
+        after={"provider": body.provider, "model": body.model},
+    )
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -391,7 +402,40 @@ def health(settings: Settings = Depends(get_settings)) -> dict:
     return {
         "status": "ok",
         "product": "VibePrompt Invisible Grill",
+        "api_version": "v1",
         "providers": settings.provider_status(),
+    }
+
+
+@router.get("/health/ready")
+def health_ready(
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+) -> dict:
+    """Deep readiness: database connectivity + provider reachability hints."""
+    from app.persistence.db import ping, redact_database_url
+
+    backend, target = settings.resolved_database()
+    db_ok = ping(backend, target)
+    providers = settings.provider_status()
+    primary_ok = bool(providers.get("primary_available"))
+    ready = db_ok
+    status = "ready" if ready else "not_ready"
+    return {
+        "status": status,
+        "database": {
+            "backend": backend,
+            "ok": db_ok,
+            "target": redact_database_url(target)
+            if backend == "postgres"
+            else target,
+        },
+        "providers": {
+            "primary_available": primary_ok,
+            "critic_available": providers.get("critic_available"),
+            "order": providers.get("provider_order"),
+        },
+        "billing_configured": bool((settings.stripe_secret_key or "").strip()),
     }
 
 
@@ -399,10 +443,14 @@ def health(settings: Settings = Depends(get_settings)) -> dict:
 def list_projects(
     repo: ProjectRepository = Depends(get_repository),
     settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
     user: UserRecord | None = Depends(require_user_when_free_tier),
 ) -> list[ProjectSummary]:
-    from app.auth.authorization import owner_id_for_list
+    from app.auth.authorization import org_id_for_list, owner_id_for_list
 
+    org_id = org_id_for_list(user, settings, store)
+    if org_id:
+        return repo.list_summaries(org_id=org_id)
     owner_id = owner_id_for_list(user, settings)
     return repo.list_summaries(owner_id=owner_id)
 
@@ -413,6 +461,7 @@ async def create_project(
     repo: ProjectRepository = Depends(get_repository),
     engine: GrillEngine = Depends(get_engine),
     settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
     user: UserRecord | None = Depends(require_user_when_free_tier),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> ProjectState:
@@ -423,7 +472,10 @@ async def create_project(
         objective=(body.objective or "").strip(),
     )
     owner_id = require_owner_for_create(user, settings)
-    project = repo.create(project, owner_id=owner_id)
+    org_id = None
+    if user is not None:
+        org_id = store.ensure_user_org(user.id, user.email)
+    project = repo.create(project, owner_id=owner_id, org_id=org_id)
     if body.initial_message and body.initial_message.strip():
         try:
             await engine.handle_message(
@@ -455,12 +507,22 @@ def delete_project(
     project_id: str,
     repo: ProjectRepository = Depends(get_repository),
     settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
     user: UserRecord | None = Depends(require_user_when_free_tier),
 ) -> dict:
-    _assert_project_access(repo, project_id, user, settings)
-    if not repo.delete(project_id):
+    _assert_project_access(repo, project_id, user, settings, store=store)
+    org_id = repo.get_org_id(project_id) if hasattr(repo, "get_org_id") else None
+    if not repo.delete(project_id, soft=True):
         raise HTTPException(status_code=404, detail="Project not found")
-    return {"deleted": True}
+    if org_id:
+        store.emit_audit(
+            org_id=org_id,
+            user_id=user.id if user else None,
+            action="project.soft_delete",
+            target_type="project",
+            target_id=project_id,
+        )
+    return {"deleted": True, "soft": True}
 
 
 @router.post("/projects/{project_id}/messages", response_model=ChatResponse)
@@ -506,17 +568,32 @@ def update_finding(
     body: FindingUpdateRequest,
     repo: ProjectRepository = Depends(get_repository),
     settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
     user: UserRecord | None = Depends(require_user_when_free_tier),
 ) -> Finding:
-    project = _assert_project_access(repo, project_id, user, settings)
+    from app.auth.authorization import assert_can_resolve_finding
+
+    project = assert_can_resolve_finding(repo, store, project_id, user, settings)
     finding = next((f for f in project.findings if f.id == finding_id), None)
     if not finding:
         raise HTTPException(status_code=404, detail="Finding not found")
+    before = {"status": finding.status, "note": finding.resolution_note}
     try:
         update_finding_status(finding, body.status, body.note)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     repo.save(project)
+    org_id = repo.get_org_id(project_id) if hasattr(repo, "get_org_id") else None
+    if org_id:
+        store.emit_audit(
+            org_id=org_id,
+            user_id=user.id if user else None,
+            action="finding.status_change",
+            target_type="finding",
+            target_id=finding_id,
+            before=before,
+            after={"status": finding.status, "note": finding.resolution_note},
+        )
     return finding
 
 
@@ -572,10 +649,24 @@ def generate_specification(
     project_id: str,
     repo: ProjectRepository = Depends(get_repository),
     settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
     user: UserRecord | None = Depends(require_user_when_free_tier),
 ) -> SpecificationResult:
-    project = _assert_project_access(repo, project_id, user, settings)
-    return compile_specification(project)
+    from app.auth.authorization import assert_can_export_spec
+
+    project = assert_can_export_spec(repo, store, project_id, user, settings)
+    result = compile_specification(project)
+    org_id = repo.get_org_id(project_id) if hasattr(repo, "get_org_id") else None
+    if org_id:
+        store.emit_audit(
+            org_id=org_id,
+            user_id=user.id if user else None,
+            action="spec.export",
+            target_type="project",
+            target_id=project_id,
+            after={"ready": result.readiness.ready if result.readiness else None},
+        )
+    return result
 
 
 @router.get("/projects/{project_id}/context")
@@ -617,6 +708,7 @@ def generate_agent_prompt(
     repo: ProjectRepository = Depends(get_repository),
     settings: Settings = Depends(get_settings),
     user: UserRecord | None = Depends(require_user_when_free_tier),
+    user_store: UserStore = Depends(get_user_store),
     store: KnowledgeStore = Depends(get_knowledge_store),
     registry: SkillRegistry = Depends(get_skill_registry),
 ) -> AgentPromptResult:
@@ -626,9 +718,11 @@ def generate_agent_prompt(
     Blocked when not implementation-ready unless force=true.
     Query params remain supported; optional JSON body overrides them.
     """
-    project = _assert_project_access(repo, project_id, user, settings)
+    from app.auth.authorization import assert_can_export_spec
+
+    project = assert_can_export_spec(repo, user_store, project_id, user, settings)
     req = body or AgentPromptRequest()
-    return compile_agent_prompt(
+    result = compile_agent_prompt(
         project,
         task=req.task if req.task is not None else task,
         force=req.force or force,
@@ -639,6 +733,17 @@ def generate_agent_prompt(
         registry=registry,
         store=store,
     )
+    org_id = repo.get_org_id(project_id) if hasattr(repo, "get_org_id") else None
+    if org_id:
+        user_store.emit_audit(
+            org_id=org_id,
+            user_id=user.id if user else None,
+            action="spec.agent_prompt_export",
+            target_type="project",
+            target_id=project_id,
+            after={"agent": req.agent or agent, "force": req.force or force},
+        )
+    return result
 
 
 @router.post("/projects/{project_id}/agent-prompt/preview-skills")
@@ -662,3 +767,146 @@ def preview_agent_prompt_skills(
         store=store,
         user_selected_skills=req.user_selected_skills or None,
     )
+
+
+# ---------------------------------------------------------------------------
+# Billing / audit / MFA / admin metrics
+# ---------------------------------------------------------------------------
+
+
+@router.post("/billing/checkout")
+def billing_checkout(
+    body: dict = Body(...),
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord = Depends(require_authenticated_user),
+) -> dict:
+    from app.billing.stripe_billing import create_checkout_session, stripe_enabled
+
+    if not stripe_enabled(settings):
+        raise HTTPException(status_code=503, detail="Stripe is not configured")
+    plan = str(body.get("plan") or "pro").lower()
+    if plan not in ("pro", "team"):
+        raise HTTPException(status_code=400, detail="plan must be pro or team")
+    org_id = store.ensure_user_org(user.id, user.email)
+    try:
+        return create_checkout_session(
+            settings,
+            store,
+            org_id=org_id,
+            plan=plan,
+            customer_email=user.email,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/billing/webhook")
+async def billing_webhook(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+    stripe_signature: str | None = Header(default=None, alias="Stripe-Signature"),
+) -> dict:
+    from app.billing.stripe_billing import handle_webhook, stripe_enabled
+
+    if not stripe_enabled(settings):
+        raise HTTPException(status_code=503, detail="Stripe is not configured")
+    payload = await request.body()
+    try:
+        return handle_webhook(
+            settings,
+            store,
+            payload=payload,
+            signature=stripe_signature or "",
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/orgs/me")
+def org_me(
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord = Depends(require_authenticated_user),
+) -> dict:
+    org_id = store.ensure_user_org(user.id, user.email)
+    role = store.get_membership_role(org_id, user.id)
+    return {
+        "org_id": org_id,
+        "plan": store.get_org_plan(org_id),
+        "role": role,
+    }
+
+
+@router.get("/orgs/{org_id}/audit")
+def org_audit_log(
+    org_id: str,
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord = Depends(require_authenticated_user),
+    limit: int = 100,
+) -> dict:
+    from app.persistence.tenancy import plan_includes_audit_log
+
+    role = store.get_membership_role(org_id, user.id)
+    if role is None and not settings.is_configured_admin(user.email):
+        raise HTTPException(status_code=404, detail="Organization not found")
+    plan = store.get_org_plan(org_id)
+    if not plan_includes_audit_log(plan) and not settings.is_configured_admin(user.email):  # type: ignore[arg-type]
+        raise HTTPException(
+            status_code=403,
+            detail="Audit log requires Team plan",
+        )
+    return {"org_id": org_id, "events": store.list_audit(org_id, limit=limit)}
+
+
+@router.post("/auth/mfa/setup")
+def mfa_setup(
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord = Depends(require_authenticated_user),
+) -> dict:
+    from app.auth.mfa import generate_totp_secret, provisioning_uri
+
+    secret = generate_totp_secret()
+    store.set_mfa_secret(user.id, secret, enabled=False)
+    return {
+        "secret": secret,
+        "otpauth_uri": provisioning_uri(secret, user.email or user.id),
+    }
+
+
+@router.post("/auth/mfa/enable")
+def mfa_enable(
+    body: dict = Body(...),
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord = Depends(require_authenticated_user),
+) -> dict:
+    from app.auth.mfa import verify_totp
+
+    row = store.get_mfa_secret(user.id)
+    if not row:
+        raise HTTPException(status_code=400, detail="Call /auth/mfa/setup first")
+    secret, _ = row
+    if not verify_totp(secret, str(body.get("code") or "")):
+        raise HTTPException(status_code=400, detail="Invalid TOTP code")
+    store.set_mfa_secret(user.id, secret, enabled=True)
+    org_id = store.ensure_user_org(user.id, user.email)
+    store.emit_audit(
+        org_id=org_id,
+        user_id=user.id,
+        action="auth.mfa_enabled",
+        target_type="user",
+        target_id=user.id,
+    )
+    return {"enabled": True}
+
+
+@router.get("/admin/metrics")
+def admin_metrics(
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord = Depends(require_authenticated_user),
+) -> dict:
+    if not settings.is_configured_admin(user.email):
+        raise HTTPException(status_code=403, detail="Admin only")
+    return store.admin_usage_metrics()

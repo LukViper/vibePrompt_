@@ -59,6 +59,7 @@ function App() {
     setLimitations: projectsApi.setLimitations,
     setProviderStatus: projectsApi.setProviderStatus,
     setFundingSource: projectsApi.setFundingSource,
+    setOfflineReview: projectsApi.setOfflineReview,
     setFreeTier,
     refreshFreeTier,
     refreshList: projectsApi.refreshList,
@@ -123,6 +124,12 @@ function App() {
         panelOpen && project ? "panel-open" : "panel-closed"
       }`}
     >
+      {projectsApi.offlineReview && (
+        <div className="offline-banner" role="status">
+          Offline heuristic mode — not live adversarial review.
+        </div>
+      )}
+
       <header className="top-bar">
         <div className="top-bar-crumb">
           <span className="brand-mark-sm">VP</span>

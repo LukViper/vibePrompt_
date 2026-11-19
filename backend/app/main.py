@@ -98,8 +98,17 @@ def create_app(settings=None) -> FastAPI:
                 content={"detail": "Internal server error"},
             )
 
+    # Canonical versioned API. /api remains an alias during the transition.
+    app.include_router(router, prefix="/api/v1")
+    app.include_router(knowledge_router, prefix="/api/v1")
     app.include_router(router, prefix="/api")
     app.include_router(knowledge_router, prefix="/api")
+
+    if settings.otel_exporter_otlp_endpoint:
+        from app.observability.tracing import init_tracing
+
+        init_tracing(settings)
+
     return app
 
 
