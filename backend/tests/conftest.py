@@ -23,6 +23,23 @@ from app.providers.base import ModelProvider
 from app.providers.mock import MockProvider, heuristic_primary
 
 
+@pytest.fixture(autouse=True)
+def _clear_app_lru_caches():
+    """Prevent leaked SQLite paths from @lru_cache deps across tests."""
+    yield
+    get_settings.cache_clear()
+    try:
+        from app.api import deps
+
+        deps.get_repository.cache_clear()
+        deps.get_user_store.cache_clear()
+        deps.get_knowledge_store.cache_clear()
+        deps.get_skill_registry.cache_clear()
+        deps.get_provider_bundle.cache_clear()
+    except Exception:
+        pass
+
+
 @pytest.fixture
 def settings() -> Settings:
     get_settings.cache_clear()
