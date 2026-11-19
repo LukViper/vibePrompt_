@@ -127,20 +127,21 @@ def main(argv: list[str] | None = None) -> int:
     )
     review.set_defaults(func=cmd_review)
 
-    # Integration stubs (documented surface)
     gh = sub.add_parser(
         "github-app-info",
-        help="Print how to wire the GitHub App Grill-on-PR integration",
+        help="Print GitHub App Grill-on-PR webhook contract",
     )
     gh.set_defaults(
         func=lambda _a: (
             print(
                 json.dumps(
                     {
-                        "status": "stub",
-                        "hook": "pull_request.opened|edited",
-                        "action": "POST /api/v1/projects with PR body as initial_message",
-                        "gate": "require readiness.implementation_ready before merge",
+                        "status": "live",
+                        "webhook": "POST /api/v1/integrations/github/webhook",
+                        "events": ["pull_request.opened", "edited", "reopened", "synchronize"],
+                        "signature": "X-Hub-Signature-256 (GITHUB_WEBHOOK_SECRET)",
+                        "response": "check conclusion + project_id + agent_gate URL",
+                        "gate": "require check.ready / implementation_ready before merge",
                     },
                     indent=2,
                 )
@@ -158,9 +159,11 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 json.dumps(
                     {
-                        "status": "stub",
-                        "inject": "Call GET /projects/{id}/readiness before agent implementation",
-                        "export": "POST /projects/{id}/agent-prompt when implementation_ready",
+                        "status": "live",
+                        "manifest": "GET /api/v1/integrations/agent-gate/manifest",
+                        "status_endpoint": "GET /api/v1/integrations/agent-gate/{project_id}",
+                        "export": "POST /api/v1/projects/{id}/agent-prompt when allow_implementation",
+                        "rule": "Abort agent run when allow_implementation is false",
                     },
                     indent=2,
                 )

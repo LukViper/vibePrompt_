@@ -1198,6 +1198,29 @@ class UserStore:
             ).fetchall()
         return [r["user_id"] for r in rows]
 
+    def notify_org_blocking_finding(
+        self,
+        *,
+        org_id: str,
+        project_id: str,
+        finding_id: str,
+        title: str,
+    ) -> int:
+        from app.collab.store import notify_blocking_finding
+
+        members = self.list_org_member_ids(org_id)
+        with self._lock, self._connect() as conn:
+            n = notify_blocking_finding(
+                conn,
+                org_id=org_id,
+                project_id=project_id,
+                finding_id=finding_id,
+                title=title,
+                member_user_ids=members,
+            )
+            conn.commit()
+            return n
+
     def save_org_playbook(
         self,
         *,

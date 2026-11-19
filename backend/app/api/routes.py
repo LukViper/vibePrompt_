@@ -1161,3 +1161,176 @@ def list_vertical_packs(
                 }
             )
     return {"items": items}
+
+
+# ---------------------------------------------------------------------------
+# Integrations: GitHub App + agent readiness gate
+# ---------------------------------------------------------------------------
+
+
+@router.get("/integrations/agent-gate/manifest")
+def agent_gate_manifest() -> dict:
+    from app.integrations.agent_gate import plugin_manifest
+
+    return plugin_manifest()
+
+
+@router.get("/integrations/agent-gate/{project_id}")
+def agent_gate_status(
+    project_id: str,
+    repo: ProjectRepository = Depends(get_repository),
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+    user: UserRecord | None = Depends(require_user_when_free_tier),
+) -> dict:
+    from app.integrations.agent_gate import build_gate_status
+
+    project = _assert_project_access(repo, project_id, user, settings, store=store)
+    return build_gate_status(project)
+
+
+@router.post("/integrations/github/webhook")
+async def github_webhook(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+    repo: ProjectRepository = Depends(get_repository),
+    engine: GrillEngine = Depends(get_engine),
+    x_hub_signature_256: str | None = Header(default=None, alias="X-Hub-Signature-256"),
+    x_github_event: str | None = Header(default=None, alias="X-GitHub-Event"),
+) -> dict:
+    """
+    GitHub App webhook: on pull_request opened/edited, create a Grill project
+    from the PR body and return a check-style conclusion for the App to post.
+    """
+    from app.integrations.github_app import (
+        extract_pr_review_brief,
+        format_check_conclusion,
+        parse_event,
+        verify_github_signature,
+    )
+    from app.compilation.readiness import assess_readiness
+
+    payload = await request.body()
+    if not verify_github_signature(
+        payload=payload,
+        signature_header=x_hub_signature_256,
+        secret=settings.github_webhook_secret,
+    ):
+        raise HTTPException(status_code=401, detail="Invalid GitHub signature")
+
+    if (x_github_event or "") not in {"pull_request", "ping"}:
+        return {"ok": True, "ignored": True, "event": x_github_event}
+
+    if x_github_event == "ping":
+        return {"ok": True, "pong": True}
+
+    try:
+        event = parse_event(payload)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}") from exc
+
+    brief = extract_pr_review_brief(event)
+    if brief is None:
+        return {"ok": True, "ignored": True, "reason": "action_not_applicable"}
+
+    owner_id = (settings.github_integration_user_id or "").strip() or None
+    org_id = None
+    if owner_id:
+        try:
+            org_id = store.ensure_user_org(owner_id, None)
+        except Exception:
+            org_id = None
+
+    project = ProjectState(
+        name=brief["name"],
+        objective=brief["objective"],
+    )
+    project = repo.create(project, owner_id=owner_id, org_id=org_id)
+
+    try:
+        await engine.handle_message(
+            project.id,
+            brief["initial_message"],
+            user_id=owner_id,
+        )
+    except FreeTierExhaustedError as exc:
+        # Still return readiness of whatever state we have
+        refreshed = repo.get(project.id) or project
+        readiness = assess_readiness(refreshed).model_dump()
+        check = format_check_conclusion(readiness)
+        return {
+            "ok": False,
+            "error": exc.code,
+            "project_id": project.id,
+            "check": check,
+            "meta": brief["meta"],
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    refreshed = repo.get(project.id) or project
+    readiness = assess_readiness(refreshed).model_dump()
+    check = format_check_conclusion(readiness)
+
+    # Notify org members of new blocking findings (in-app + optional email)
+    if org_id:
+        from app.integrations.email_notify import send_notification_email
+
+        blockers = [
+            f
+            for f in refreshed.findings
+            if f.status.value == "open"
+            and (f.kind or "").lower() == "blocking_contradiction"
+        ]
+        members = store.list_org_member_ids(org_id)
+        for f in blockers:
+            store.notify_org_blocking_finding(
+                org_id=org_id,
+                project_id=refreshed.id,
+                finding_id=f.id,
+                title=f.title,
+            )
+        if blockers:
+            emails = []
+            for uid in members:
+                u = store.get_user(uid)
+                if (
+                    u
+                    and u.email
+                    and "@" in u.email
+                    and not u.email.endswith(".supabase")
+                ):
+                    emails.append(u.email)
+            send_notification_email(
+                settings,
+                to_addresses=emails,
+                subject=(
+                    f"[VibePrompt] Blocking findings on "
+                    f"{brief['meta'].get('repo')}#{brief['meta'].get('pr_number')}"
+                ),
+                body=(
+                    f"Grill found {len(blockers)} blocking finding(s).\n"
+                    f"Project: {refreshed.id}\n"
+                    f"PR: {brief['meta'].get('html_url')}\n"
+                    + "\n".join(f"- {f.title}" for f in blockers)
+                ),
+            )
+
+    if org_id:
+        store.emit_audit(
+            org_id=org_id,
+            user_id=owner_id,
+            action="github.pr_review",
+            target_type="project",
+            target_id=project.id,
+            after={"check": check, "meta": brief["meta"]},
+        )
+
+    return {
+        "ok": True,
+        "project_id": project.id,
+        "check": check,
+        "meta": brief["meta"],
+        "agent_gate": f"/api/v1/integrations/agent-gate/{project.id}",
+    }

@@ -77,6 +77,7 @@ _PUBLIC_API_SUFFIXES = (
     "/auth/login",
     "/auth/google",
     "/billing/webhook",
+    "/integrations/github/webhook",
 )
 
 

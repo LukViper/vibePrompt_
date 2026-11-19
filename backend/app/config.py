@@ -151,6 +151,19 @@ class Settings(BaseSettings):
     otel_exporter_otlp_endpoint: str = ""
     cost_usd_per_1k_input_tokens: float = 0.00015
     cost_usd_per_1k_output_tokens: float = 0.0006
+
+    # GitHub App webhook (PR Grill review)
+    github_webhook_secret: str = ""
+    github_integration_user_id: str = ""  # optional local user to own PR projects
+
+    # Email notifications (optional — blocking findings / mentions)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_use_tls: bool = True
+    notify_from_email: str = ""
+
     # Comma-separated admin emails for Knowledge Library. If empty and free tier
     # is off, any authenticated user may administer (local single-tenant). If free
     # tier is on, ADMIN_EMAILS must be set.
