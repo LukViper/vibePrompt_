@@ -1,6 +1,5 @@
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "./api/client";
 import { useAuth } from "./auth/AuthContext";
 import { Composer } from "./components/Composer";
 import { ContextPanel } from "./components/ContextPanel";
@@ -10,271 +9,113 @@ import { ByokModal, CreateProjectModal, SpecModal } from "./components/Modals";
 import { KnowledgeLibrary } from "./components/KnowledgeLibrary";
 import { Sidebar } from "./components/Sidebar";
 import { Welcome } from "./components/Welcome";
-import type {
-  AgentPromptPreview,
-  AgentPromptResult,
-  ByokProvider,
-  CodingAgent,
-  FindingStatus,
-  FreeTierStatus,
-  ProjectState,
-  ProjectSummary,
-  ReadinessResult,
-  SpecificationResult,
-} from "./types";
+import { useByok } from "./hooks/useByok";
+import { followUpsFrom, useChat } from "./hooks/useChat";
+import { useFreeTier } from "./hooks/useFreeTier";
+import { useProjects } from "./hooks/useProjects";
+
+type ThemeMode = "dark" | "light";
+
+function readTheme(): ThemeMode {
+  const stored = localStorage.getItem("vibeprompt_theme");
+  if (stored === "light" || stored === "dark") return stored;
+  return "dark";
+}
 
 function App() {
   const navigate = useNavigate();
   const { profile: user, logout: authLogout, loading: authLoading } = useAuth();
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [project, setProject] = useState<ProjectState | null>(null);
-  const [readiness, setReadiness] = useState<ReadinessResult | null>(null);
-  const [limitations, setLimitations] = useState<string[]>([]);
-  const [providerStatus, setProviderStatus] = useState<string | null>(null);
-  const [fundingSource, setFundingSource] = useState<string | null>(null);
-  const [freeTier, setFreeTier] = useState<FreeTierStatus | null>(null);
-  const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
-  const [showByok, setShowByok] = useState(false);
   const [showKnowledge, setShowKnowledge] = useState(false);
-  const [spec, setSpec] = useState<SpecificationResult | null>(null);
-  const [showAgentPrompt, setShowAgentPrompt] = useState(false);
-  const [agentPromptResult, setAgentPromptResult] =
-    useState<AgentPromptResult | null>(null);
-  const [agentPromptPreview, setAgentPromptPreview] =
-    useState<AgentPromptPreview | null>(null);
-  const [newName, setNewName] = useState("");
-  const [newObjective, setNewObjective] = useState("");
-  const [newMessage, setNewMessage] = useState("");
-  const [byokProvider, setByokProvider] = useState<ByokProvider>("qwen");
-  const [byokModel, setByokModel] = useState("qwen3.5-flash");
-  const [byokKey, setByokKey] = useState("");
-  const [byokBaseUrl, setByokBaseUrl] = useState("");
-  const [projectQuery, setProjectQuery] = useState("");
   const [panelOpen, setPanelOpen] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNav, setMobileNav] = useState<"none" | "left" | "right">("none");
-  const chatEnd = useRef<HTMLDivElement>(null);
+  const [theme, setTheme] = useState<ThemeMode>(readTheme);
 
-  const refreshFreeTier = useCallback(async () => {
-    try {
-      const status = await api.freeTierStatus();
-      setFreeTier(status);
-    } catch {
-      setFreeTier(null);
-    }
-  }, []);
+  const {
+    freeTier,
+    setFreeTier,
+    refreshFreeTier,
+    freeTierEnabled,
+    needsByok,
+    modePillLabel,
+    modePillClass,
+  } = useFreeTier();
 
-  const refreshList = useCallback(async () => {
-    const list = await api.listProjects();
-    setProjects(list);
-  }, []);
+  const byok = useByok({ refreshFreeTier, setBusy, setError });
 
-  const loadProject = useCallback(async (id: string) => {
-    const p = await api.getProject(id);
-    setProject(p);
-    const r = await api.getReadiness(id);
-    setReadiness(r);
-    setLimitations([]);
-    setProviderStatus(null);
-    setFundingSource(null);
-    setMobileNav("none");
-  }, []);
+  const projectsApi = useProjects({
+    refreshFreeTier,
+    setBusy,
+    setError,
+    setMobileNav,
+  });
+
+  const chat = useChat({
+    project: projectsApi.project,
+    setProject: projectsApi.setProject,
+    setReadiness: projectsApi.setReadiness,
+    setLimitations: projectsApi.setLimitations,
+    setProviderStatus: projectsApi.setProviderStatus,
+    setFundingSource: projectsApi.setFundingSource,
+    setFreeTier,
+    refreshFreeTier,
+    refreshList: projectsApi.refreshList,
+    loadProject: projectsApi.loadProject,
+    setShowByok: byok.setShowByok,
+    busy,
+    setBusy,
+    setError,
+  });
+
+  const needsAuth = freeTierEnabled && !user;
+  const followUps = followUpsFrom(projectsApi.readiness, projectsApi.project);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("vibeprompt_theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     if (authLoading) return;
     const boot = async () => {
       await refreshFreeTier();
+      await projectsApi.refreshSkills(Boolean(user));
       try {
-        await refreshList();
+        await projectsApi.refreshList();
       } catch (e) {
         setError(String(e));
       }
     };
     void boot();
-  }, [authLoading, user?.id, refreshFreeTier, refreshList]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boot on auth identity change
+  }, [authLoading, user?.id]);
 
   useEffect(() => {
-    chatEnd.current?.scrollIntoView({ behavior: "smooth" });
-  }, [project?.messages]);
+    function onKey(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "k") return;
+      e.preventDefault();
+      if (!projectsApi.project) {
+        projectsApi.setShowCreate(true);
+        return;
+      }
+      document
+        .querySelector<HTMLTextAreaElement>(".composer-box textarea")
+        ?.focus();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [projectsApi.project, projectsApi.setShowCreate]);
 
   async function logout() {
-    setProject(null);
-    setProjects([]);
+    projectsApi.clearProjects();
     await authLogout();
     void refreshFreeTier();
     navigate("/login");
   }
 
-  async function handleByok(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await api.upsertByok({
-        provider: byokProvider,
-        api_key: byokKey.trim(),
-        model: byokModel.trim(),
-        base_url: byokBaseUrl.trim() || undefined,
-        set_active: true,
-      });
-      setByokKey("");
-      setShowByok(false);
-      await refreshFreeTier();
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleCreate(e: FormEvent) {
-    e.preventDefault();
-    if (!newName.trim()) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const p = await api.createProject({
-        name: newName.trim(),
-        objective: newObjective.trim() || undefined,
-        initial_message: newMessage.trim() || undefined,
-      });
-      setShowCreate(false);
-      setNewName("");
-      setNewObjective("");
-      setNewMessage("");
-      await refreshList();
-      await loadProject(p.id);
-      await refreshFreeTier();
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function sendMessage(e: FormEvent) {
-    e.preventDefault();
-    if (!project || !draft.trim() || busy) return;
-    setBusy(true);
-    setError(null);
-    const content = draft.trim();
-    setDraft("");
-    try {
-      // Mode is resolved internally — do not send an explicit activation mode
-      const res = await api.sendMessage(project.id, content);
-      setProject(res.project);
-      setReadiness(res.readiness);
-      setLimitations(res.review_limitations);
-      setProviderStatus(res.provider_status);
-      setFundingSource(res.funding_source);
-      if (res.free_tier) setFreeTier(res.free_tier);
-      else await refreshFreeTier();
-      await refreshList();
-    } catch (err) {
-      setError(String(err));
-      setDraft(content);
-      await refreshFreeTier();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function updateFinding(findingId: string, status: FindingStatus) {
-    if (!project) return;
-    setBusy(true);
-    try {
-      await api.updateFinding(project.id, findingId, status);
-      await loadProject(project.id);
-      await refreshList();
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function exportSpec() {
-    if (!project) return;
-    setBusy(true);
-    try {
-      const result = await api.generateSpec(project.id);
-      setSpec(result);
-      setReadiness(result.readiness);
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function openAgentPrompt() {
-    setAgentPromptResult(null);
-    setAgentPromptPreview(null);
-    setShowAgentPrompt(true);
-  }
-
-  async function previewAgentSkills(opts: {
-    task: string;
-    agent: CodingAgent;
-    includeSkills: boolean;
-  }) {
-    if (!project) return;
-    try {
-      const preview = await api.previewAgentPromptSkills(project.id, {
-        task: opts.task || undefined,
-      });
-      setAgentPromptPreview(preview);
-      setReadiness(preview.readiness);
-    } catch (err) {
-      setError(String(err));
-    }
-  }
-
-  async function generateAgentPrompt(opts: {
-    task: string;
-    agent: CodingAgent;
-    force: boolean;
-    includeSkills: boolean;
-    refineNotes: string;
-  }) {
-    if (!project) return;
-    setBusy(true);
-    try {
-      const result = await api.generateAgentPrompt(project.id, {
-        task: opts.task || undefined,
-        agent: opts.agent,
-        force: opts.force,
-        include_skills: opts.includeSkills,
-        refine_notes: opts.refineNotes || undefined,
-      });
-      setAgentPromptResult(result);
-      setReadiness(result.readiness);
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function openCreateWithExample(name: string, idea: string) {
-    setNewName(name);
-    setNewMessage(idea);
-    setNewObjective("");
-    setShowCreate(true);
-  }
-
-  const openFindings = project?.findings.filter((f) => f.status === "open") ?? [];
-  const freeTierEnabled = freeTier?.enabled === true;
-  const needsAuth = freeTierEnabled && !user;
-  const needsByok = freeTier?.requires_byok === true && !freeTier.byok_configured;
-  const followUps =
-    readiness?.unblock_actions?.slice(0, 3) ??
-    (project
-      ? ["Clarify target users", "List must-have features", "Confirm the tech stack"]
-      : []);
+  const project = projectsApi.project;
 
   return (
     <div
@@ -282,6 +123,56 @@ function App() {
         panelOpen && project ? "panel-open" : "panel-closed"
       }`}
     >
+      <header className="top-bar">
+        <div className="top-bar-crumb">
+          <span className="brand-mark-sm">VP</span>
+          <span className="sep">/</span>
+          <span className="title">{project?.name ?? "VibePrompt"}</span>
+          {project?.behavioural_mode && (
+            <>
+              <span className="sep">·</span>
+              <span
+                className="mono"
+                style={{ color: "var(--ink-faint)", fontSize: "0.6875rem" }}
+              >
+                {(project.behavioural_mode === "grill_review"
+                  ? "review"
+                  : project.behavioural_mode
+                ).toUpperCase()}
+              </span>
+            </>
+          )}
+        </div>
+        <div className="top-bar-actions">
+          <button
+            type="button"
+            className={modePillClass}
+            onClick={() => byok.setShowByok(true)}
+            title="Bring your own API key / inference settings"
+          >
+            {modePillLabel}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+            title="Toggle theme"
+          >
+            {theme === "dark" ? "Light" : "Dark"}
+          </button>
+          {project && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => void chat.exportSpec()}
+              disabled={busy}
+            >
+              Spec
+            </button>
+          )}
+        </div>
+      </header>
+
       {(mobileNav === "left" || mobileNav === "right") && (
         <button
           type="button"
@@ -293,18 +184,21 @@ function App() {
 
       <div className={`sidebar-shell ${mobileNav === "left" ? "drawer-open" : ""}`}>
         <Sidebar
-          projects={projects}
+          projects={projectsApi.projects}
           activeId={project?.id ?? null}
+          activeMode={project?.behavioural_mode}
           user={user}
           freeTier={freeTier}
-          fundingSource={fundingSource}
-          projectQuery={projectQuery}
+          fundingSource={projectsApi.fundingSource}
+          projectQuery={projectsApi.projectQuery}
           needsAuth={needsAuth}
           needsByok={needsByok}
-          onQueryChange={setProjectQuery}
-          onSelectProject={(id) => void loadProject(id)}
-          onNewProject={() => setShowCreate(true)}
-          onOpenByok={() => setShowByok(true)}
+          skillsActive={projectsApi.skillsActive}
+          skillsTotal={projectsApi.skillsTotal}
+          onQueryChange={projectsApi.setProjectQuery}
+          onSelectProject={(id) => void projectsApi.loadProject(id)}
+          onNewProject={() => projectsApi.setShowCreate(true)}
+          onOpenByok={() => byok.setShowByok(true)}
           onLogin={() => navigate("/login")}
           onRegister={() => navigate("/signup")}
           onLogout={() => void logout()}
@@ -330,7 +224,7 @@ function App() {
               className="btn btn-ghost btn-sm"
               onClick={() => setMobileNav("right")}
             >
-              Readiness
+              State
             </button>
           )}
         </div>
@@ -339,9 +233,9 @@ function App() {
           <Welcome
             allocated={freeTier?.allocated ?? 20}
             needsAuth={needsAuth}
-            onStart={() => setShowCreate(true)}
+            onStart={(brief) => void projectsApi.createFromBrief(brief)}
             onRegister={() => navigate("/signup")}
-            onPickExample={openCreateWithExample}
+            onPickExample={projectsApi.openCreateWithExample}
           />
         ) : (
           <>
@@ -349,52 +243,59 @@ function App() {
               <div>
                 <h2>{project.name}</h2>
                 <p className="muted header-sub">
-                  {project.objective || "No objective yet — describe the product."}
+                  {project.objective ||
+                    "No objective yet — assert the problem and stack."}
                 </p>
               </div>
               <div className="header-actions">
                 <button
                   className="btn btn-ghost btn-sm"
                   type="button"
-                  onClick={() => setPanelOpen((v) => !v)}
+                  onClick={() => {
+                    if (window.matchMedia("(max-width: 1100px)").matches) {
+                      setMobileNav("right");
+                    } else {
+                      setPanelOpen((v) => !v);
+                    }
+                  }}
                 >
-                  {panelOpen ? "Hide readiness" : "Show readiness"}
-                </button>
-                <button
-                  className="btn btn-ghost"
-                  type="button"
-                  onClick={() => void exportSpec()}
-                  disabled={busy}
-                >
-                  Export spec
+                  {panelOpen ? "Hide inspector" : "Show inspector"}
                 </button>
                 <button
                   className={
-                    readiness?.implementation_ready ? "btn btn-sm" : "btn btn-ghost"
+                    projectsApi.readiness?.implementation_ready
+                      ? "btn btn-sm"
+                      : "btn btn-ghost btn-sm"
                   }
                   type="button"
-                  onClick={() => openAgentPrompt()}
+                  onClick={() => chat.openAgentPrompt()}
                   disabled={busy}
                   title={
-                    readiness?.implementation_ready
-                      ? "Project is implementation-ready — generate an agent prompt"
-                      : "Generate prompt (blocked until checklist is complete, unless forced)"
+                    projectsApi.readiness?.implementation_ready
+                      ? "Export Agent Spec"
+                      : "Locked until Readiness Gate passes"
                   }
                 >
-                  Agent prompt
-                  {readiness?.implementation_ready ? " · ready" : ""}
+                  Export Agent Spec
                 </button>
               </div>
             </header>
 
-            {providerStatus && (
-              <div className="provider-status" title={providerStatus}>
-                {providerStatus}
-                {fundingSource ? ` · Funding: ${fundingSource}` : ""}
+            {projectsApi.providerStatus && (
+              <div
+                className="provider-status"
+                title={projectsApi.providerStatus}
+              >
+                {projectsApi.providerStatus}
+                {projectsApi.fundingSource
+                  ? ` · Funding: ${projectsApi.fundingSource}`
+                  : ""}
               </div>
             )}
-            {limitations.length > 0 && (
-              <div className="banner warn">{limitations.join(" · ")}</div>
+            {projectsApi.limitations.length > 0 && (
+              <div className="banner warn">
+                {projectsApi.limitations.join(" · ")}
+              </div>
             )}
             {error && <div className="banner danger">{error}</div>}
             {needsByok && (
@@ -403,7 +304,7 @@ function App() {
                 <button
                   className="btn btn-sm"
                   type="button"
-                  onClick={() => setShowByok(true)}
+                  onClick={() => byok.setShowByok(true)}
                 >
                   Configure BYOK
                 </button>
@@ -415,13 +316,17 @@ function App() {
                 <MessageBubble
                   key={m.id}
                   message={m}
-                  onCopy={(content) => void navigator.clipboard.writeText(content)}
+                  techStack={project.tech_stack}
+                  rejectedApproaches={project.rejected_approaches ?? []}
+                  onCopy={(content) =>
+                    void navigator.clipboard.writeText(content)
+                  }
                 />
               ))}
               {busy && (
                 <div className="msg msg-assistant thinking" aria-live="polite">
                   <div className="msg-meta">
-                    <span className="msg-role">VibePrompt</span>
+                    <span className="msg-role">Mentor brief</span>
                   </div>
                   <div className="thinking-dots">
                     <span />
@@ -438,22 +343,22 @@ function App() {
                       type="button"
                       className="follow-chip"
                       disabled={needsByok}
-                      onClick={() => setDraft(tip)}
+                      onClick={() => chat.setDraft(tip)}
                     >
                       {tip}
                     </button>
                   ))}
                 </div>
               )}
-              <div ref={chatEnd} />
+              <div ref={chat.chatEnd} />
             </div>
 
             <Composer
-              draft={draft}
+              draft={chat.draft}
               busy={busy}
               disabled={needsByok}
-              onDraftChange={setDraft}
-              onSubmit={(e) => void sendMessage(e)}
+              onDraftChange={chat.setDraft}
+              onSubmit={(e) => void chat.sendMessage(e)}
             />
           </>
         )}
@@ -468,11 +373,16 @@ function App() {
           hidden={!panelOpen && mobileNav !== "right"}
         >
           <ContextPanel
-            readiness={readiness}
-            findings={openFindings}
+            readiness={projectsApi.readiness}
+            findings={chat.openFindings}
             decisions={project.decisions}
+            techStack={project.tech_stack}
+            rejectedApproaches={project.rejected_approaches ?? []}
             busy={busy}
-            onUpdateFinding={(id, status) => void updateFinding(id, status)}
+            onUpdateFinding={(id, status, note) =>
+              void chat.updateFinding(id, status, note)
+            }
+            onExportAgent={chat.openAgentPrompt}
             onClose={() => {
               setPanelOpen(false);
               setMobileNav("none");
@@ -481,56 +391,58 @@ function App() {
         </div>
       )}
 
-      {showCreate && (
+      {projectsApi.showCreate && (
         <CreateProjectModal
-          name={newName}
-          objective={newObjective}
-          message={newMessage}
+          name={projectsApi.newName}
+          objective={projectsApi.newObjective}
+          message={projectsApi.newMessage}
           busy={busy}
-          onName={setNewName}
-          onObjective={setNewObjective}
-          onMessage={setNewMessage}
-          onClose={() => setShowCreate(false)}
-          onSubmit={(e) => void handleCreate(e)}
+          onName={projectsApi.setNewName}
+          onObjective={projectsApi.setNewObjective}
+          onMessage={projectsApi.setNewMessage}
+          onClose={() => projectsApi.setShowCreate(false)}
+          onSubmit={(e) => void projectsApi.handleCreate(e)}
         />
       )}
 
-      {showByok && (
+      {byok.showByok && (
         <ByokModal
-          provider={byokProvider}
-          model={byokModel}
-          apiKey={byokKey}
-          baseUrl={byokBaseUrl}
+          provider={byok.byokProvider}
+          model={byok.byokModel}
+          apiKey={byok.byokKey}
+          baseUrl={byok.byokBaseUrl}
           remaining={freeTier?.remaining ?? null}
           allocated={freeTier?.allocated ?? null}
           connected={Boolean(freeTier?.byok_configured)}
           busy={busy}
           onProvider={(p, model) => {
-            setByokProvider(p);
-            setByokModel(model);
+            byok.setByokProvider(p);
+            byok.setByokModel(model);
           }}
-          onModel={setByokModel}
-          onKey={setByokKey}
-          onBaseUrl={setByokBaseUrl}
-          onClose={() => setShowByok(false)}
-          onSubmit={(e) => void handleByok(e)}
+          onModel={byok.setByokModel}
+          onKey={byok.setByokKey}
+          onBaseUrl={byok.setByokBaseUrl}
+          onClose={() => byok.setShowByok(false)}
+          onSubmit={(e) => void byok.handleByok(e)}
         />
       )}
 
-      {spec && <SpecModal spec={spec} onClose={() => setSpec(null)} />}
+      {chat.spec && (
+        <SpecModal spec={chat.spec} onClose={() => chat.setSpec(null)} />
+      )}
 
-      {showAgentPrompt && project && (
+      {chat.showAgentPrompt && project && (
         <AgentPromptModal
-          readiness={readiness}
+          readiness={projectsApi.readiness}
           busy={busy}
-          result={agentPromptResult}
-          preview={agentPromptPreview}
+          result={chat.agentPromptResult}
+          preview={chat.agentPromptPreview}
           onClose={() => {
-            setShowAgentPrompt(false);
-            setAgentPromptResult(null);
+            chat.setShowAgentPrompt(false);
+            chat.setAgentPromptResult(null);
           }}
-          onPreview={(opts) => void previewAgentSkills(opts)}
-          onGenerate={(opts) => void generateAgentPrompt(opts)}
+          onPreview={(opts) => void chat.previewAgentSkills(opts)}
+          onGenerate={(opts) => void chat.generateAgentPrompt(opts)}
         />
       )}
 

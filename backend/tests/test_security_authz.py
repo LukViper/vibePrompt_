@@ -273,17 +273,23 @@ def test_production_api_rejects_missing_api_secret_header(tmp_db: str):
     repo = SQLiteProjectRepository(tmp_db)
     client, _, _ = _build_client(settings, repo=repo, db_path=tmp_db)
 
-    # No X-API-Secret
+    # Health + auth bootstrap stay public (SPA mints guest JWT; no bundled secret)
     res = client.get("/api/health")
-    assert res.status_code == 401
-
-    # Wrong secret
-    res = client.get("/api/health", headers={"X-API-Secret": "wrong"})
-    assert res.status_code == 401
-
-    # Correct secret
-    res = client.get("/api/health", headers={"X-API-Secret": "super-secret-api-token"})
     assert res.status_code == 200
+    assert client.post("/api/auth/guest").status_code == 200
+
+    # Protected routes still require Bearer JWT or matching X-API-Secret
+    res = client.get("/api/projects")
+    assert res.status_code == 401
+
+    res = client.get("/api/projects", headers={"X-API-Secret": "wrong"})
+    assert res.status_code == 401
+
+    res = client.get(
+        "/api/projects", headers={"X-API-Secret": "super-secret-api-token"}
+    )
+    # Secret satisfies gate; production still requires authenticated user for projects
+    assert res.status_code == 401
 
 
 def test_production_requires_auth_for_projects(tmp_db: str):

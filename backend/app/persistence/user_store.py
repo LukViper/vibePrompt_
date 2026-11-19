@@ -663,6 +663,171 @@ class UserStore:
                     pass
                 raise
 
+    def check_and_increment_global_counter(
+        self,
+        counter_key: str,
+        *,
+        limit: int,
+        window_seconds: int,
+    ) -> tuple[bool, int]:
+        """Global circuit breaker (e.g. shared QWEN_API_KEY daily cap)."""
+        now = utcnow()
+        window_start = datetime.fromtimestamp(
+            (int(now.timestamp()) // window_seconds) * window_seconds,
+            tz=timezone.utc,
+        )
+        window_iso = _iso(window_start)
+        with self._lock, self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                row = conn.execute(
+                    "SELECT * FROM global_usage_counters WHERE counter_key = ?",
+                    (counter_key,),
+                ).fetchone()
+                if not row or row["window_start"] != window_iso:
+                    conn.execute(
+                        """
+                        INSERT INTO global_usage_counters (counter_key, window_start, request_count)
+                        VALUES (?, ?, 1)
+                        ON CONFLICT(counter_key) DO UPDATE SET
+                            window_start = excluded.window_start,
+                            request_count = 1
+                        """,
+                        (counter_key, window_iso),
+                    )
+                    conn.execute("COMMIT")
+                    return True, max(limit - 1, 0)
+                if row["request_count"] >= limit:
+                    conn.execute("COMMIT")
+                    return False, 0
+                conn.execute(
+                    """
+                    UPDATE global_usage_counters
+                    SET request_count = request_count + 1
+                    WHERE counter_key = ?
+                    """,
+                    (counter_key,),
+                )
+                remaining = max(limit - (row["request_count"] + 1), 0)
+                conn.execute("COMMIT")
+                return True, remaining
+            except Exception:
+                try:
+                    conn.execute("ROLLBACK")
+                except sqlite3.Error:
+                    pass
+                raise
+
+    # --------------------------------------------------------------- guests
+    def create_guest_session(
+        self,
+        *,
+        ip_hash: str | None,
+        generations: int,
+        expires_minutes: int,
+        provider: str,
+        model: str,
+    ) -> tuple[UserRecord, dict[str, Any]]:
+        """
+        Mint a synthetic guest user + capped free-tier allocation.
+        Returns (user, session_row).
+        """
+        guest_id = new_id("gst_")
+        created = utcnow()
+        expires = created.timestamp() + expires_minutes * 60
+        expires_at = datetime.fromtimestamp(expires, tz=timezone.utc)
+        day_key = created.strftime("%Y-%m-%d")
+        email = f"{guest_id}@guest.local"
+        with self._lock, self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO users (
+                        id, email, password_hash, display_name, avatar_url,
+                        auth_provider, created_at
+                    ) VALUES (?, ?, '', 'Guest', NULL, 'guest', ?)
+                    """,
+                    (guest_id, email, _iso(created)),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO guest_sessions (
+                        id, ip_hash, generations_allocated, generations_used,
+                        created_at, expires_at, day_key
+                    ) VALUES (?, ?, ?, 0, ?, ?, ?)
+                    """,
+                    (
+                        guest_id,
+                        ip_hash or "",
+                        generations,
+                        _iso(created),
+                        _iso(expires_at),
+                        day_key,
+                    ),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO free_tier_allocations (
+                        user_id, generations_allocated, generations_used,
+                        provider, model, created_at, updated_at
+                    ) VALUES (?, ?, 0, ?, ?, ?, ?)
+                    """,
+                    (
+                        guest_id,
+                        generations,
+                        provider,
+                        model,
+                        _iso(created),
+                        _iso(created),
+                    ),
+                )
+                conn.execute("COMMIT")
+            except Exception:
+                try:
+                    conn.execute("ROLLBACK")
+                except sqlite3.Error:
+                    pass
+                raise
+        user = UserRecord(
+            id=guest_id,
+            email=email,
+            password_hash="",
+            display_name="Guest",
+            auth_provider="guest",
+            created_at=created,
+        )
+        session = {
+            "id": guest_id,
+            "ip_hash": ip_hash or "",
+            "generations_allocated": generations,
+            "generations_used": 0,
+            "created_at": _iso(created),
+            "expires_at": _iso(expires_at),
+            "day_key": day_key,
+        }
+        return user, session
+
+    def get_guest_session(self, guest_id: str) -> dict[str, Any] | None:
+        with self._lock, self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM guest_sessions WHERE id = ?",
+                (guest_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def guest_session_expired(self, guest_id: str) -> bool:
+        row = self.get_guest_session(guest_id)
+        if not row:
+            return True
+        try:
+            exp = datetime.fromisoformat(row["expires_at"])
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            return utcnow() >= exp
+        except (TypeError, ValueError):
+            return True
+
     # ----------------------------------------------------------- project owner
     def set_project_owner(self, project_id: str, owner_id: str) -> None:
         with self._lock, self._connect() as conn:

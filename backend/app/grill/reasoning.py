@@ -30,6 +30,7 @@ class ContradictionKind:
     TECHNICAL = "technical_incompatibility"
     BUDGET = "budget_conflict"
     MISSING_DEP = "missing_dependency"
+    BLOCKING = "blocking_contradiction"
 
 
 class AssumptionClass:
@@ -134,21 +135,35 @@ class MentorReasoning:
         for c in self.prioritized_contradictions():
             if c.severity == Severity.LOW.value and len(out) >= 2:
                 continue
+            is_blocking = c.kind == ContradictionKind.BLOCKING
             out.append(
                 CandidateFinding(
-                    title=c.kind.replace("_", " ").title()[:120],
+                    title=(
+                        "Blocking Contradiction"
+                        if is_blocking
+                        else c.kind.replace("_", " ").title()[:120]
+                    ),
                     challenged_claim=c.statements[0] if c.statements else c.why,
                     reasoning=f"{c.why} Consequence: {c.consequence}",
                     evidence=list(c.statements[:4]),
                     assumptions_to_verify=[],
                     severity=c.severity,
-                    confidence=0.75 if c.kind == ContradictionKind.DIRECT else 0.55,
+                    confidence=0.9 if is_blocking else (
+                        0.75 if c.kind == ContradictionKind.DIRECT else 0.55
+                    ),
                     potential_impact=c.consequence,
                     recommended_next_step=c.resolution,
                     invalidation_criteria=(
-                        "User explicitly resolves the conflict or provides evidence "
-                        "that both constraints can hold together."
+                        "Requires a project state update (tech selection, rejection "
+                        "supersession, or manifest/artifact change) plus concrete "
+                        "counterevidence. User insistence alone is not sufficient."
+                        if is_blocking
+                        else (
+                            "User explicitly resolves the conflict or provides evidence "
+                            "that both constraints can hold together."
+                        )
                     ),
+                    kind=ContradictionKind.BLOCKING if is_blocking else c.kind,
                 )
             )
             if len(out) >= max_findings:
@@ -1195,10 +1210,16 @@ def run_mentor_reasoning(
     result.context_keys = sorted(bundle.snapshot.keys())
     result.stages_run.append("project_context_retrieval")
 
-    # 3. Contradiction detection
+    # 3. Contradiction detection (+ deterministic REVIEW fail-closed gate)
     cons = stage_requirement_contradictions(project, user_message)
     if patch is not None:
         cons.extend(enrich_patch_contradictions(project, patch))
+    # Pre-critic REVIEW gate: stack / rejected / manifest conflicts from the brief
+    if mode_c in (BehaviouralMode.REVIEW, BehaviouralMode.GRILL_REVIEW):
+        from app.grill.review_gate import detect_review_blocking_contradictions
+
+        cons.extend(detect_review_blocking_contradictions(project, user_message))
+        result.stages_run.append("review_blocking_gate")
     # Dedup by why
     seen: set[str] = set()
     deduped: list[ContradictionFinding] = []
@@ -1208,10 +1229,16 @@ def run_mentor_reasoning(
         seen.add(c.why)
         deduped.append(c)
     # Drop issues the user already resolved / accepted / rejected unless new info
+    # Blocking contradictions are never suppressed by prior rejection alone.
     deduped = _filter_resolved_contradictions(project, deduped, user_message)
     # Topic-shift: unrelated new asks should not revive old project tensions
+    # (keep blocking REVIEW findings even on topic shift when mode is REVIEW)
     if _looks_unrelated_to_project(project, user_message):
-        deduped = []
+        blocking = [c for c in deduped if c.kind == ContradictionKind.BLOCKING]
+        if mode_c in (BehaviouralMode.REVIEW, BehaviouralMode.GRILL_REVIEW) and blocking:
+            deduped = blocking
+        else:
+            deduped = []
     result.contradictions = _severity_cap(deduped, keep_low_if_empty=True)
     result.stages_run.append("contradiction_detection")
 
@@ -1282,6 +1309,10 @@ def _filter_resolved_contradictions(
     msg = _norm(user_message)
     kept: list[ContradictionFinding] = []
     for c in findings:
+        # Fail-closed: re-detected blocking contradictions stay open until state changes
+        if c.kind == ContradictionKind.BLOCKING:
+            kept.append(c)
+            continue
         claim_blob = _norm(" ".join(c.statements) + " " + c.why)
         revived_by_new_info = False
         # New info can revive: user reintroduces the same tension explicitly

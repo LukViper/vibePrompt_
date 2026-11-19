@@ -27,7 +27,12 @@ data/
 node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/tsconfig.tsbuildinfo
 *.local
+
+# Backend local env (examples are allowed)
+backend/.env
+frontend/.env
 
 # IDE / OS
 .idea/
@@ -59,3 +64,7 @@ books/processed/
 !books/extraction_logs/
 !books/RESOURCE_MANIFEST.json
 vendor/
+
+# Large generated verification dumps
+docs/DEPLOYMENT_VERIFICATION_RESULTS.json
+docs/GRILL_ADVERSARIAL_VALIDATION_RESULTS.json

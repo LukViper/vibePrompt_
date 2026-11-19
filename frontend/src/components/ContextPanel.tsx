@@ -1,11 +1,20 @@
-import type { Finding, FindingStatus, ReadinessResult } from "../types";
+import { useState } from "react";
+import type {
+  Finding,
+  FindingStatus,
+  ReadinessResult,
+  RejectedApproach,
+} from "../types";
 
 type Props = {
   readiness: ReadinessResult | null;
   findings: Finding[];
   decisions: { id: string; title: string; choice: string }[];
+  techStack: string[];
+  rejectedApproaches: RejectedApproach[];
   busy: boolean;
-  onUpdateFinding: (id: string, status: FindingStatus) => void;
+  onUpdateFinding: (id: string, status: FindingStatus, note?: string) => void;
+  onExportAgent: () => void;
   onClose?: () => void;
 };
 
@@ -22,20 +31,146 @@ function progressFromReadiness(r: ReadinessResult | null): number {
   return Math.max(12, Math.min(85, 70 - missing * 12));
 }
 
+function isBlocking(f: Finding): boolean {
+  return (f.kind || "").trim().toLowerCase() === "blocking_contradiction";
+}
+
+function FindingCard({
+  finding,
+  busy,
+  onUpdateFinding,
+}: {
+  finding: Finding;
+  busy: boolean;
+  onUpdateFinding: (id: string, status: FindingStatus, note?: string) => void;
+}) {
+  const [note, setNote] = useState("");
+  const [expanded, setExpanded] = useState(isBlocking(finding));
+  const blocking = isBlocking(finding);
+  const noteOk = note.trim().length >= 8;
+
+  return (
+    <div className={`finding-card ${blocking ? "blocking-kind" : ""}`}>
+      <button
+        type="button"
+        className="title"
+        style={{
+          width: "100%",
+          textAlign: "left",
+          background: "none",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          color: "inherit",
+        }}
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+      >
+        <span className={`sev ${finding.severity}`}>{finding.severity}</span>
+        {finding.title}
+        {blocking && (
+          <span className="state-badge blocking" style={{ marginLeft: 6 }}>
+            BLOCKING
+          </span>
+        )}
+      </button>
+
+      {expanded && (
+        <>
+          <p className="claim">{finding.challenged_claim}</p>
+          {finding.reasoning && (
+            <p className="next-step">{finding.reasoning}</p>
+          )}
+          {finding.recommended_next_step && (
+            <p className="next-step" style={{ marginTop: 6 }}>
+              Next: {finding.recommended_next_step}
+            </p>
+          )}
+          {finding.evidence.length > 0 && (
+            <>
+              <p className="panel-label">Evidence on file</p>
+              <ul className="list-tight">
+                {finding.evidence.map((e) => (
+                  <li key={e}>{e}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          <p className="evidence-hint">
+            {blocking
+              ? "Evidence required — counterevidence note (state / artifact)"
+              : "Resolution note required"}
+          </p>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={
+              blocking
+                ? "e.g. Migrated API to single-node FastAPI; Vercel rejected superseded…"
+                : "Describe evidence or resolution…"
+            }
+            aria-label="Resolution evidence note"
+          />
+          <div className="finding-actions">
+            <button
+              className="btn btn-sm"
+              type="button"
+              disabled={busy || !noteOk}
+              onClick={() => onUpdateFinding(finding.id, "resolved", note.trim())}
+            >
+              Resolve w/ evidence
+            </button>
+            <button
+              className="btn btn-sm btn-ghost"
+              type="button"
+              disabled={busy || !noteOk}
+              onClick={() =>
+                onUpdateFinding(finding.id, "accepted_risk", note.trim())
+              }
+            >
+              Accept risk
+            </button>
+            {!blocking && (
+              <button
+                className="btn btn-sm btn-ghost"
+                type="button"
+                disabled={busy || !noteOk}
+                onClick={() =>
+                  onUpdateFinding(finding.id, "rejected", note.trim())
+                }
+              >
+                Reject finding
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function ContextPanel({
   readiness,
   findings,
   decisions,
+  techStack,
+  rejectedApproaches,
   busy,
   onUpdateFinding,
+  onExportAgent,
   onClose,
 }: Props) {
   const pct = progressFromReadiness(readiness);
+  const blockerCount =
+    (readiness?.blockers.length ?? 0) +
+    findings.filter(isBlocking).length;
+  const implReady = readiness?.implementation_ready === true;
+  const blockingFinding = findings.find(isBlocking);
 
   return (
     <aside className="context-panel">
       <div className="context-panel-header">
-        <h3>Project readiness</h3>
+        <h3>Project state</h3>
         {onClose && (
           <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
             Hide
@@ -44,6 +179,7 @@ export function ContextPanel({
       </div>
 
       <section className="panel-section">
+        <h3>Readiness Gate</h3>
         {readiness ? (
           <>
             <span className={`readiness-badge ${readiness.status}`}>
@@ -51,13 +187,29 @@ export function ContextPanel({
             </span>
             <div className="progress-block">
               <div className="progress-meta">
-                <span>Definition progress</span>
+                <span>
+                  {blockerCount > 0
+                    ? `${blockerCount} hard blocker${blockerCount === 1 ? "" : "s"}`
+                    : "No hard blockers"}
+                </span>
                 <strong>{pct}%</strong>
               </div>
               <div className="progress-track" aria-hidden>
-                <div className="progress-fill" style={{ width: `${pct}%` }} />
+                <div
+                  className={`progress-fill ${implReady ? "verified" : blockerCount ? "blocking" : ""}`}
+                  style={{ width: `${pct}%` }}
+                />
               </div>
             </div>
+
+            {blockingFinding && (
+              <>
+                <p className="panel-label danger">Active blocking_contradiction</p>
+                <p className="muted" style={{ margin: "0 0 0.5rem", fontSize: "0.75rem" }}>
+                  {blockingFinding.title}
+                </p>
+              </>
+            )}
 
             {readiness.blockers.length > 0 && (
               <>
@@ -72,7 +224,7 @@ export function ContextPanel({
 
             {readiness.missing_essentials.length > 0 && (
               <>
-                <p className="panel-label">Missing information</p>
+                <p className="panel-label">Missing</p>
                 <ul className="list-tight">
                   {readiness.missing_essentials.map((b) => (
                     <li key={b}>{b}</li>
@@ -92,22 +244,10 @@ export function ContextPanel({
               </>
             )}
 
-            {readiness.unblock_actions.length > 0 && (
-              <>
-                <p className="panel-label">Suggested actions</p>
-                <ul className="list-tight">
-                  {readiness.unblock_actions.map((b) => (
-                    <li key={b}>{b}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-
             {readiness.checklist && readiness.checklist.length > 0 && (
               <>
                 <p className="panel-label">
-                  Implementation checklist
-                  {readiness.implementation_ready ? " · ready" : ""}
+                  Checklist{implReady ? " · ready" : ""}
                 </p>
                 <ul className="list-tight checklist">
                   {readiness.checklist.map((item) => (
@@ -128,55 +268,66 @@ export function ContextPanel({
         <h3>Open findings</h3>
         {findings.length === 0 && <p className="muted">No open findings</p>}
         {findings.map((f) => (
-          <div key={f.id} className="finding-card">
-            <p className="title">
-              <span className={`sev ${f.severity}`}>{f.severity}</span>
-              {f.title}
-            </p>
-            <p className="claim">{f.challenged_claim}</p>
-            <p className="next-step">{f.recommended_next_step}</p>
-            <div className="finding-actions">
-              <button
-                className="btn btn-sm btn-ghost"
-                type="button"
-                disabled={busy}
-                onClick={() => onUpdateFinding(f.id, "resolved")}
-              >
-                Resolve
-              </button>
-              <button
-                className="btn btn-sm btn-ghost"
-                type="button"
-                disabled={busy}
-                onClick={() => onUpdateFinding(f.id, "accepted_risk")}
-              >
-                Accept risk
-              </button>
-              <button
-                className="btn btn-sm btn-ghost"
-                type="button"
-                disabled={busy}
-                onClick={() => onUpdateFinding(f.id, "rejected")}
-              >
-                Reject
-              </button>
-            </div>
-          </div>
+          <FindingCard
+            key={f.id}
+            finding={f}
+            busy={busy}
+            onUpdateFinding={onUpdateFinding}
+          />
         ))}
       </section>
 
-      {decisions.length > 0 && (
-        <section className="panel-section">
-          <h3>Decisions</h3>
-          <ul className="list-tight">
-            {decisions.map((d) => (
-              <li key={d.id}>
-                <strong>{d.title}:</strong> {d.choice}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <section className="panel-section">
+        <h3>Stack manifest</h3>
+        <div className="stack-manifest">
+          {techStack.length === 0 && rejectedApproaches.length === 0 && (
+            <p className="muted">No locked or rejected options yet</p>
+          )}
+          {techStack.map((t) => (
+            <span key={t} className="state-badge locked">
+              {t}: LOCKED
+            </span>
+          ))}
+          {rejectedApproaches.map((r) => (
+            <span key={r.id} className="state-badge rejected" title={r.reason}>
+              {r.approach}: REJECTED
+            </span>
+          ))}
+        </div>
+        {decisions.length > 0 && (
+          <>
+            <p className="panel-label">Decisions</p>
+            <ul className="list-tight">
+              {decisions.map((d) => (
+                <li key={d.id}>
+                  <strong>{d.title}:</strong> {d.choice}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+
+      <div className="export-cta">
+        <button
+          type="button"
+          className={`btn btn-block ${implReady ? "" : "btn-locked"}`}
+          disabled={busy || !implReady}
+          onClick={onExportAgent}
+          title={
+            implReady
+              ? "Generate Cursor / Antigravity / Codex agent prompt"
+              : "Locked until Readiness Gate passes"
+          }
+        >
+          Export Agent Spec
+        </button>
+        <p className="hint">
+          {implReady
+            ? "Unlocked — Cursor · Antigravity · Codex"
+            : "Disabled until Readiness Gate passes"}
+        </p>
+      </div>
     </aside>
   );
 }

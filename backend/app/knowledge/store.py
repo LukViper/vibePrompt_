@@ -37,12 +37,21 @@ def _parse_dt(value: str | None) -> datetime | None:
 
 
 class KnowledgeStore:
-    def __init__(self, database_path: str, *, skills_root: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        database_path: str,
+        *,
+        skills_root: str | Path | None = None,
+        upload_root: str | Path | None = None,
+    ) -> None:
         self.database_path = database_path
-        self.skills_root = Path(skills_root or Path(database_path).parent / "skills")
+        data_parent = Path(database_path).parent
+        self.skills_root = Path(skills_root or data_parent / "skills")
+        self.upload_root = Path(upload_root or data_parent / "knowledge" / "uploads")
         self.skills_root.mkdir(parents=True, exist_ok=True)
+        self.upload_root.mkdir(parents=True, exist_ok=True)
         self._lock = Lock()
-        Path(database_path).parent.mkdir(parents=True, exist_ok=True)
+        data_parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:

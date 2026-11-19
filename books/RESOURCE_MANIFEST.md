@@ -2,7 +2,10 @@
 
 Generated: 2026-11-10T21:32:18.977644+00:00
 
-Acquired: 6 · Metadata only: 1 · Failed: 0
+**Release baseline (single-node beta):** 6 active acquired titles. Do not claim 8/8 Books-to-Skill live.
+Metadata-only / commercial catalog discovery titles remain **planned / pending-rights**.
+
+Acquired: 6 · Metadata only: 1 · Failed: 0 · Active release: 6
 
 ## Prompt Engineering
 - ID: `prompt_engineering_lee_boonstra`

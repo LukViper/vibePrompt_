@@ -1,6 +1,6 @@
 # VibePrompt Deployment and Recovery
 
-Staging/production packaging for the API (+ optional web UI). Grill, Books-to-Skill, orchestration, and prompt-generation code paths are unchanged.
+Staging/production packaging for the API (+ optional web UI) as an **evidence-backed single-node beta** (SQLite WAL / single-writer, Vercel SPA + external FastAPI). Grill, Books-to-Skill (6 active acquired titles), orchestration, and prompt-generation code paths are unchanged.
 
 ## Architecture (compose)
 
@@ -24,9 +24,10 @@ The FastAPI + SQLite API is **not** hosted on Vercel (persistent volume, long LL
 | Variable | Purpose |
 |---|---|
 | `VITE_API_BASE_URL` | Absolute API base including `/api`, e.g. `https://api.example.com/api` |
-| `VITE_API_SECRET` | Same value as backend `API_SECRET` (sent as `X-API-Secret`) |
 | `VITE_SUPABASE_URL` | Supabase project URL (if using Supabase auth) |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon / publishable key |
+
+Do **not** set a static API secret in the SPA. The browser mints a short-lived guest JWT via `POST /api/auth/guest` (or uses a logged-in user Bearer token). Keep `API_SECRET` server-side for ops/curl only.
 
 3. On the API host, set `CORS_ORIGINS` to the exact Vercel HTTPS origin(s), e.g. `https://your-app.vercel.app`.
 4. Redeploy after env changes (Vite inlines `VITE_*` at build time).
@@ -85,7 +86,7 @@ curl -fsS -H "X-API-Secret: $API_SECRET" http://127.0.0.1:8000/api/health
 | `APP_ENV` | Must be `production` |
 | `JWT_SECRET` | Strong, unique; not `dev-only-*` |
 | `CREDENTIALS_ENCRYPTION_KEY` | Strong, unique; not `dev-only-*` |
-| `API_SECRET` | Non-empty; clients send `X-API-Secret` |
+| `API_SECRET` | Non-empty server-side; SPA uses guest/user JWT (ops may still send `X-API-Secret`) |
 | `DATABASE_PATH` | `/data/vibeprompt.db` on the persistent volume |
 | `CORS_ORIGINS` | Exact HTTPS frontend origin(s) |
 | HTTPS | Terminate TLS at reverse proxy; forward `X-Forwarded-Proto` |
@@ -102,7 +103,7 @@ app.example.com {
 }
 ```
 
-Ensure the proxy preserves `Authorization` and `X-API-Secret` headers to the upstream.
+Ensure the proxy preserves `Authorization` (and optional ops `X-API-Secret`) headers to the upstream.
 
 ## SQLite backup (consistent)
 

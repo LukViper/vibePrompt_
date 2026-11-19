@@ -1,4 +1,5 @@
 import { FormEvent } from "react";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import type { ByokProvider, SpecificationResult } from "../types";
 
 const BYOK_PROVIDERS: { id: ByokProvider; label: string; defaultModel: string }[] = [
@@ -7,6 +8,25 @@ const BYOK_PROVIDERS: { id: ByokProvider; label: string; defaultModel: string }[
   { id: "openrouter", label: "OpenRouter", defaultModel: "openai/gpt-4o-mini" },
   { id: "groq", label: "Groq", defaultModel: "openai/gpt-oss-20b" },
 ];
+
+const PROVIDER_KEY_LINKS: Record<ByokProvider, { href: string; label: string }> = {
+  qwen: {
+    href: "https://bailian.console.alibabacloud.com/?apiKey=1",
+    label: "Get Qwen API key ↗",
+  },
+  gemini: {
+    href: "https://aistudio.google.com/app/apikey",
+    label: "Get Google AI Studio key ↗",
+  },
+  openrouter: {
+    href: "https://openrouter.ai/settings/keys",
+    label: "Get OpenRouter key ↗",
+  },
+  groq: {
+    href: "https://console.groq.com/keys",
+    label: "Get Groq API key ↗",
+  },
+};
 
 export { BYOK_PROVIDERS };
 
@@ -31,8 +51,9 @@ export function AuthModal({
   onClose,
   onSubmit,
 }: AuthProps) {
+  useEscapeKey(onClose);
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={onClose} role="presentation">
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={onSubmit}>
         <h3>{mode === "register" ? "Create account" : "Sign in"}</h3>
         <label htmlFor="auth-email">Email</label>
@@ -89,11 +110,17 @@ export function CreateProjectModal({
   onClose,
   onSubmit,
 }: CreateProps) {
+  useEscapeKey(onClose);
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={onSubmit}>
+    <div className="modal-backdrop" onClick={onClose} role="presentation">
+      <form
+        className="modal"
+        style={{ width: "min(480px, 100%)" }}
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={onSubmit}
+      >
         <h3>New project</h3>
-        <label htmlFor="name">Name</label>
+        <label htmlFor="name">Project name</label>
         <input
           id="name"
           value={name}
@@ -101,20 +128,21 @@ export function CreateProjectModal({
           required
           autoFocus
         />
-        <label htmlFor="objective">Objective (optional)</label>
+        <label htmlFor="objective">1 · Problem</label>
         <textarea
           id="objective"
           rows={2}
           value={objective}
           onChange={(e) => onObjective(e.target.value)}
+          placeholder="Who is stuck, and what outcome do they need?"
         />
-        <label htmlFor="initial">Initial idea (optional)</label>
+        <label htmlFor="initial">2–3 · Target stack & constraints</label>
         <textarea
           id="initial"
-          rows={3}
+          rows={4}
           value={message}
           onChange={(e) => onMessage(e.target.value)}
-          placeholder="Describe what you want to build…"
+          placeholder={"Target stack: …\nConstraints: …"}
         />
         <div className="modal-actions">
           <button className="btn btn-ghost" type="button" onClick={onClose}>
@@ -162,8 +190,9 @@ export function ByokModal({
   onClose,
   onSubmit,
 }: ByokProps) {
+  useEscapeKey(onClose);
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={onClose} role="presentation">
       <form
         className="modal byok-modal"
         onClick={(e) => e.stopPropagation()}
@@ -195,7 +224,17 @@ export function ByokModal({
           onChange={(e) => onModel(e.target.value)}
           required
         />
-        <label htmlFor="byok-key">API key</label>
+        <div className="byok-key-label-row">
+          <label htmlFor="byok-key">API key</label>
+          <a
+            className="byok-key-console-link"
+            href={PROVIDER_KEY_LINKS[provider].href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {PROVIDER_KEY_LINKS[provider].label}
+          </a>
+        </div>
         <input
           id="byok-key"
           type="password"
@@ -239,8 +278,9 @@ type SpecProps = {
 };
 
 export function SpecModal({ spec, onClose }: SpecProps) {
+  useEscapeKey(onClose);
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={onClose} role="presentation">
       <div className="modal spec-modal" onClick={(e) => e.stopPropagation()}>
         <div className="spec-header">
           <h3>Specification</h3>

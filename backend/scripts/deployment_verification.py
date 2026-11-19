@@ -58,7 +58,8 @@ def run(cmd: list[str], *, cwd: Path | None = None, env: dict | None = None, tim
 
 
 def detect_compose() -> list[str]:
-    # Prefer podman compose on this host; fall back to docker compose
+    # Prefer podman compose on this host; fall back to docker compose.
+    # Require exit code 0 — stderr often contains the word "compose" even on failure.
     for candidate in (
         ["podman", "compose"],
         ["docker", "compose"],
@@ -68,7 +69,7 @@ def detect_compose() -> list[str]:
             proc = run([*candidate, "version"], timeout=30)
         except FileNotFoundError:
             continue
-        if proc.returncode == 0 or "compose" in (proc.stdout + proc.stderr).lower():
+        if proc.returncode == 0:
             return candidate
     raise RuntimeError("Neither podman compose nor docker compose is available")
 
@@ -180,12 +181,18 @@ def main() -> int:
         str(unauth.status_code),
     )
 
-    # Missing API secret
-    bare = httpx.get(f"{base}/api/health", timeout=10.0)
+    # Health is public; protected routes still require Bearer JWT or X-API-Secret
+    bare_health = httpx.get(f"{base}/api/health", timeout=10.0)
     record(
-        "Request without X-API-Secret rejected",
-        bare.status_code == 401,
-        str(bare.status_code),
+        "Health endpoint public without credentials",
+        bare_health.status_code == 200,
+        str(bare_health.status_code),
+    )
+    bare_projects = httpx.get(f"{base}/api/projects", timeout=10.0)
+    record(
+        "Request without Bearer/API secret rejected on protected routes",
+        bare_projects.status_code == 401,
+        str(bare_projects.status_code),
     )
 
     # Auth — two users

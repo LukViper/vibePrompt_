@@ -16,7 +16,13 @@ export function Composer({
   onSubmit,
 }: Props) {
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key === "Enter") {
+      e.preventDefault();
+      onSubmit(e);
+      return;
+    }
+    if (e.key === "Enter" && !e.shiftKey && !mod) {
       e.preventDefault();
       onSubmit(e);
     }
@@ -28,20 +34,22 @@ export function Composer({
         <textarea
           value={draft}
           onChange={(e) => onDraftChange(e.target.value)}
-          placeholder="Ask about your idea, decisions, or next steps…"
+          placeholder="Assert a decision, provide evidence, or revise the stack…"
           rows={2}
           disabled={busy || disabled}
           onKeyDown={onKeyDown}
           aria-label="Message"
         />
         <div className="composer-toolbar">
-          <span className="composer-shortcut">Enter to send · Shift+Enter newline</span>
+          <span className="composer-shortcut">
+            ⌘/Ctrl+Enter · Enter to send · Esc closes modals
+          </span>
           <button
             className="btn"
             type="submit"
             disabled={busy || disabled || !draft.trim()}
           >
-            {busy ? "Thinking…" : "Send"}
+            {busy ? "Reviewing…" : "Send"}
           </button>
         </div>
       </div>

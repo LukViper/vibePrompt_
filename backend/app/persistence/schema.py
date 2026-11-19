@@ -81,6 +81,28 @@ SCHEMA_STATEMENTS = (
         request_count INTEGER NOT NULL DEFAULT 0
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS guest_sessions (
+        id TEXT PRIMARY KEY,
+        ip_hash TEXT,
+        generations_allocated INTEGER NOT NULL,
+        generations_used INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        day_key TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_guest_sessions_ip_day
+    ON guest_sessions(ip_hash, day_key)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS global_usage_counters (
+        counter_key TEXT PRIMARY KEY,
+        window_start TEXT NOT NULL,
+        request_count INTEGER NOT NULL DEFAULT 0
+    )
+    """,
 )
 
 
@@ -97,7 +119,23 @@ def apply_schema(conn: sqlite3.Connection) -> None:
         conn.execute(statement)
     _ensure_project_owner_column(conn)
     _ensure_user_profile_columns(conn)
+    _ensure_guest_password_hash_nullable(conn)
     conn.commit()
+
+
+def _ensure_guest_password_hash_nullable(conn: sqlite3.Connection) -> None:
+    """Legacy users.password_hash was NOT NULL; guests store NULL. Recreate if needed."""
+    tables = {
+        r[0]
+        for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
+    if "users" not in tables:
+        return
+    # SQLite cannot ALTER COLUMN nullability; empty-string sentinel is fine for guests
+    # when the column remains NOT NULL on older DBs. create_guest_session uses ''.
+    pass
 
 
 def _ensure_project_owner_column(conn: sqlite3.Connection) -> None:

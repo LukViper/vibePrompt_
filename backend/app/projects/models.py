@@ -237,11 +237,17 @@ class Finding(BaseModel):
     critic_notes: str | None = None
     status: FindingStatus = FindingStatus.OPEN
     invalidation_criteria: str = ""
+    # e.g. blocking_contradiction — requires state/artifact counterevidence
+    kind: str = ""
     history: list[FindingRevision] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
     resolved_at: datetime | None = None
     resolution_note: str | None = None
+
+    @property
+    def is_blocking_contradiction(self) -> bool:
+        return (self.kind or "").strip().lower() == "blocking_contradiction"
 
     def revise(
         self,
@@ -349,8 +355,8 @@ class ProjectState(BaseModel):
 
 class ProjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    objective: str = ""
-    initial_message: str | None = None
+    objective: str = Field(default="", max_length=8_000)
+    initial_message: str | None = Field(default=None, max_length=16_000)
 
 
 class ProjectSummary(BaseModel):
@@ -395,14 +401,14 @@ class ContextUpdateRequest(BaseModel):
 
 class FindingUpdateRequest(BaseModel):
     status: FindingStatus
-    note: str | None = None
+    note: str | None = Field(default=None, max_length=4_000)
 
 
 class DecisionUpdateRequest(BaseModel):
     """Accept / reject / resolve a decision without silently rewriting its choice."""
 
     status: DecisionStatus
-    note: str | None = None
+    note: str | None = Field(default=None, max_length=4_000)
 
 
 class ReadinessChecklistItem(BaseModel):
@@ -439,12 +445,12 @@ class SpecificationResult(BaseModel):
 class AgentPromptRequest(BaseModel):
     """Optional body for agent-prompt generation."""
 
-    task: str | None = None
-    agent: str = "cursor"  # cursor | antigravity | codex
+    task: str | None = Field(default=None, max_length=4_000)
+    agent: str = Field(default="cursor", max_length=40)  # cursor | antigravity | codex
     force: bool = False
     include_skills: bool = True
-    user_selected_skills: list[str] = Field(default_factory=list)
-    refine_notes: str | None = None
+    user_selected_skills: list[str] = Field(default_factory=list, max_length=32)
+    refine_notes: str | None = Field(default=None, max_length=4_000)
 
 
 class PromptQualityReport(BaseModel):

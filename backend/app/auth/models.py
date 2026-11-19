@@ -70,9 +70,26 @@ class ProfileSyncRequest(BaseModel):
     auth_provider: str | None = Field(default=None, max_length=40)
 
 
+class GoogleAuthRequest(BaseModel):
+    """Google Identity Services credential (ID token) from the browser button."""
+
+    id_token: str = Field(min_length=20, max_length=8192)
+
+
 class AuthConfigPublic(BaseModel):
     mode: str  # supabase | legacy
     supabase_configured: bool
     google_oauth_hint: bool = False
     github_oauth_hint: bool = False
+    google_client_id: str | None = None
     email_auth: bool = True
+    guest_sessions_enabled: bool = True
+
+
+class GuestAuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    role: str = "guest"
+    expires_in_minutes: int
+    generations_allocated: int
+    user: UserPublic

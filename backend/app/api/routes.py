@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request
 
 from app.api.deps import (
     get_current_user,
@@ -17,16 +17,25 @@ from app.api.deps import (
     require_user,
     require_user_when_free_tier,
 )
+from app.auth.client_ip import hash_client_ip, resolve_client_ip
+from app.auth.google_id_token import GoogleIdTokenError, verify_google_id_token
 from app.auth.models import (
     AuthConfigPublic,
     AuthResponse,
+    GoogleAuthRequest,
+    GuestAuthResponse,
     LoginRequest,
     ProfileSyncRequest,
     RegisterRequest,
     UserPublic,
     UserRecord,
 )
-from app.auth.security import create_access_token, hash_password, verify_password
+from app.auth.security import (
+    create_access_token,
+    create_guest_token,
+    hash_password,
+    verify_password,
+)
 from app.byok.service import ByokValidationError, validate_and_save_byok
 from app.compilation.agent_prompt import compile_agent_prompt
 from app.compilation.prompt_pipeline import preview_skill_selection
@@ -97,12 +106,64 @@ def _assert_project_access(
 def auth_config(settings: Settings = Depends(get_settings)) -> AuthConfigPublic:
     """Public auth configuration for the frontend (no secrets)."""
     mode = settings.effective_auth_mode
+    google_client_id = (settings.google_oauth_client_id or "").strip() or None
     return AuthConfigPublic(
         mode=mode,
         supabase_configured=settings.supabase_configured,
-        google_oauth_hint=settings.supabase_google_oauth_enabled,
+        google_oauth_hint=bool(google_client_id) or settings.supabase_google_oauth_enabled,
         github_oauth_hint=settings.supabase_github_oauth_enabled,
+        google_client_id=google_client_id,
         email_auth=True,
+        guest_sessions_enabled=True,
+    )
+
+
+@router.post("/auth/guest", response_model=GuestAuthResponse)
+def mint_guest_session(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+) -> GuestAuthResponse:
+    """
+    Mint a short-lived guest JWT for SPA bootstrap.
+
+    Replaces static VITE_API_SECRET. Enforces per-IP mint rate limits so Sybil
+    loops cannot mint unlimited quota buckets. Forwarded-IP headers are ignored
+    unless TRUSTED_PROXY_CIDRS matches the peer.
+    """
+    client_ip = resolve_client_ip(request, settings)
+    ip_hash = hash_client_ip(client_ip)
+    allowed, _ = store.check_and_increment_rate_limit(
+        f"guest-mint:{ip_hash}",
+        limit=settings.guest_mint_rate_limit_per_hour,
+        window_seconds=3600,
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "guest_mint_rate_limited",
+                "message": "Too many guest sessions from this network. Sign in or configure BYOK.",
+            },
+        )
+
+    user, session = store.create_guest_session(
+        ip_hash=ip_hash,
+        generations=settings.guest_free_tier_generations,
+        expires_minutes=settings.guest_jwt_expires_minutes,
+        provider=settings.free_tier_provider,
+        model=settings.free_tier_model,
+    )
+    token = create_guest_token(
+        guest_id=user.id,
+        secret=settings.jwt_secret,
+        expires_minutes=settings.guest_jwt_expires_minutes,
+    )
+    return GuestAuthResponse(
+        access_token=token,
+        expires_in_minutes=settings.guest_jwt_expires_minutes,
+        generations_allocated=int(session["generations_allocated"]),
+        user=store.to_public(user),
     )
 
 
@@ -195,6 +256,58 @@ def login(
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     # Returning users must NOT receive another free-tier allocation.
+    if settings.free_tier_enabled:
+        store.ensure_free_tier_allocation(
+            user.id,
+            generations=settings.free_tier_generations,
+            provider=settings.free_tier_provider,
+            model=settings.free_tier_model,
+        )
+
+    token = create_access_token(
+        user_id=user.id,
+        email=user.email,
+        secret=settings.jwt_secret,
+        expires_minutes=settings.jwt_expires_minutes,
+    )
+    return AuthResponse(access_token=token, user=store.to_public(user))
+
+
+@router.post("/auth/google", response_model=AuthResponse)
+def login_with_google(
+    body: GoogleAuthRequest,
+    settings: Settings = Depends(get_settings),
+    store: UserStore = Depends(get_user_store),
+) -> AuthResponse:
+    """Exchange a Google Identity Services ID token for a VibePrompt JWT."""
+    client_id = (settings.google_oauth_client_id or "").strip()
+    if not client_id:
+        raise HTTPException(
+            status_code=503,
+            detail="Google Sign-In is not configured (set GOOGLE_OAUTH_CLIENT_ID)",
+        )
+    try:
+        claims = verify_google_id_token(body.id_token, client_id=client_id)
+    except GoogleIdTokenError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+    sub = str(claims["sub"])
+    email = str(claims["email"]).strip().lower()
+    display = str(claims.get("name") or "").strip() or None
+    avatar = str(claims.get("picture") or "").strip() or None
+    user_id = f"google_{sub}"
+
+    try:
+        user = store.upsert_supabase_user(
+            user_id=user_id,
+            email=email,
+            display_name=display,
+            avatar_url=avatar,
+            auth_provider="google",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     if settings.free_tier_enabled:
         store.ensure_free_tier_allocation(
             user.id,
@@ -399,7 +512,10 @@ def update_finding(
     finding = next((f for f in project.findings if f.id == finding_id), None)
     if not finding:
         raise HTTPException(status_code=404, detail="Finding not found")
-    update_finding_status(finding, body.status, body.note)
+    try:
+        update_finding_status(finding, body.status, body.note)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     repo.save(project)
     return finding
 

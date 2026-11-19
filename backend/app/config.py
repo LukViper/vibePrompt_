@@ -41,6 +41,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Demo mode: force offline-heuristic Grill (no live provider calls).
+    # Set DEMO_MODE=true or pass --demo via `python -m app --demo`.
+    demo_mode: bool = False
+
     # Gemini
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.8-flash"
@@ -67,6 +71,17 @@ class Settings(BaseSettings):
     free_tier_rate_limit_per_minute: int = 10
     qwen_api_key: str = ""
     qwen_base_url: str = DEFAULT_QWEN_BASE_URL
+    # Guest / shared-platform abuse controls (single-node beta)
+    guest_jwt_expires_minutes: int = 180
+    guest_free_tier_generations: int = 8
+    guest_rate_limit_per_minute: int = 5
+    # Sybil guard: fresh JWTs from the same IP cannot mint unlimited quota buckets
+    guest_mint_rate_limit_per_hour: int = 5
+    guest_ip_daily_generations: int = 8
+    qwen_global_daily_request_cap: int = 500
+    # Comma-separated CIDRs. Only when the peer is in this set do we honor
+    # CF-Connecting-IP / X-Forwarded-For. Empty = never trust forwarded headers.
+    trusted_proxy_cidrs: str = ""
 
     # Auth / BYOK
     jwt_secret: str = "dev-only-change-me-vibeprompt-jwt"
@@ -84,6 +99,8 @@ class Settings(BaseSettings):
     # Frontend hints only — actual OAuth enablement is in the Supabase dashboard
     supabase_google_oauth_enabled: bool = False
     supabase_github_oauth_enabled: bool = False
+    # Google Identity Services (direct GIS) — browser-safe OAuth client ID
+    google_oauth_client_id: str = ""
 
     # Failover / orchestration
     primary_provider_order: str = "gemini,openrouter,groq"
@@ -202,7 +219,7 @@ class Settings(BaseSettings):
             return True
         if secret.startswith("dev-only"):
             return True
-        return len(secret) < 16
+        return len(secret) < 32
 
     def uses_insecure_credentials_key(self) -> bool:
         secret = (self.credentials_encryption_key or "").strip()
@@ -212,7 +229,8 @@ class Settings(BaseSettings):
             return True
         if secret.startswith("dev-only"):
             return True
-        return len(secret) < 16
+        # Must differ from JWT_SECRET so BYOK material is not aliased to auth signing
+        return len(secret) < 32
 
     def validate_production_settings(self) -> list[str]:
         """Return human-readable errors if production config is unsafe. Empty = ok."""
@@ -225,13 +243,26 @@ class Settings(BaseSettings):
             )
         if self.uses_insecure_jwt_secret():
             errors.append(
-                "JWT_SECRET must be explicitly set to a strong non-development value in production"
+                "JWT_SECRET must be a strong non-development value "
+                "(≥32 characters, not a packaged default) in production"
             )
         if self.uses_insecure_credentials_key():
             errors.append(
-                "CREDENTIALS_ENCRYPTION_KEY must be explicitly set to a strong "
-                "non-development value in production"
+                "CREDENTIALS_ENCRYPTION_KEY must be a strong non-development value "
+                "(≥32 characters, not a packaged default) in production"
             )
+        jwt_s = (self.jwt_secret or "").strip()
+        cred_s = (self.credentials_encryption_key or "").strip()
+        if jwt_s and cred_s and jwt_s == cred_s:
+            errors.append(
+                "CREDENTIALS_ENCRYPTION_KEY must not equal JWT_SECRET "
+                "(BYOK encryption key must be dedicated)"
+            )
+        origins = self.cors_origin_list
+        if not origins:
+            errors.append("CORS_ORIGINS must list explicit SPA origin(s) in production")
+        if any(o.strip() == "*" for o in origins):
+            errors.append("CORS_ORIGINS must not include wildcard '*' in production")
         return errors
 
     def assert_secure_for_runtime(self) -> None:
@@ -301,6 +332,8 @@ class Settings(BaseSettings):
     @property
     def primary_configured(self) -> bool:
         """True if any external primary-chain provider has credentials."""
+        if self.demo_mode:
+            return False
         return any(
             {
                 "gemini": self.gemini_configured,
@@ -325,18 +358,22 @@ class Settings(BaseSettings):
 
     def provider_status(self) -> dict[str, object]:
         # Never expose API keys.
+        live_primary = self.primary_configured or (
+            self.free_tier_ready and not self.demo_mode
+        )
         return {
-            "primary_available": self.primary_configured or self.free_tier_ready,
-            "critic_available": self.critic_configured,
+            "demo_mode": self.demo_mode,
+            "primary_available": live_primary,
+            "critic_available": self.critic_configured and not self.demo_mode,
             "critic_enabled": self.critic_enabled,
             "review_intensity": self.review_intensity,
             "provider_order": self.provider_order_list,
-            "gemini_configured": self.gemini_configured,
-            "openrouter_configured": self.openrouter_configured,
-            "groq_configured": self.groq_configured,
-            "qwen_configured": self.qwen_configured,
-            "free_tier_enabled": self.free_tier_enabled,
-            "free_tier_ready": self.free_tier_ready,
+            "gemini_configured": self.gemini_configured and not self.demo_mode,
+            "openrouter_configured": self.openrouter_configured and not self.demo_mode,
+            "groq_configured": self.groq_configured and not self.demo_mode,
+            "qwen_configured": self.qwen_configured and not self.demo_mode,
+            "free_tier_enabled": self.free_tier_enabled and not self.demo_mode,
+            "free_tier_ready": self.free_tier_ready and not self.demo_mode,
             "free_tier_provider": self.free_tier_provider if self.free_tier_enabled else None,
             "free_tier_model": self.free_tier_model if self.free_tier_enabled else None,
             "free_tier_generations": (
