@@ -18,7 +18,7 @@ The FastAPI + SQLite API is **not** hosted on Vercel (persistent volume, long LL
 
 ### Connect the GitHub repo
 
-1. Import `LukViper/vibePrompt_` in Vercel (root directory = repository root; `vercel.json` already sets install/build/output).
+1. Import `LukViper/vibePrompt_` in Vercel (**Root Directory** = repository root `/`, not `frontend`). Root `vercel.json` runs `cd frontend && npm ci` / `npm run build` and publishes `frontend/dist`. If Root Directory is set to `frontend`, drop the custom install/build commands or `npm ci` will look for a missing nested lockfile and fail with EUSAGE.
 2. Set Environment Variables (Production / Preview as needed):
 
 | Variable | Purpose |
