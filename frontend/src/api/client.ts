@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import type {
   AcquisitionReport,
   AuthConfigPublic,
@@ -26,6 +27,14 @@ import type {
 const BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
 const TOKEN_KEY = "vibeprompt_token";
 const GUEST_TOKEN_KEY = "vibeprompt_guest_token";
+
+/** Capacitor WebView has no Vite /api proxy — require an absolute API base. */
+if (Capacitor.isNativePlatform() && !/^https?:\/\//i.test(BASE)) {
+  console.error(
+    "[VibePrompt] Set VITE_API_BASE_URL to an absolute https API URL before building the APK " +
+      `(got "${BASE}"). Example: VITE_API_BASE_URL=https://api.example.com/api`,
+  );
+}
 
 export type ApiError = Error & {
   status?: number;
@@ -114,6 +123,17 @@ export function parseError(res: Response, detail: string): ApiError {
     }
   } catch {
     /* keep raw text */
+  }
+  // Empty-body 405 is typical when POST /api/* hits a static SPA host (e.g. Vercel)
+  // instead of the FastAPI backend — usually missing VITE_API_BASE_URL.
+  if (
+    res.status === 405 &&
+    (!detail || !detail.trim() || message === `Request failed (${res.status})`)
+  ) {
+    message =
+      "API not reachable (405). Point VITE_API_BASE_URL at your FastAPI host " +
+      "(include /api), or use the Vite/nginx proxy locally.";
+    code = code || "api_unreachable";
   }
   const err = new Error(message) as ApiError;
   err.status = res.status;

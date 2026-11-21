@@ -18,7 +18,7 @@ The FastAPI + SQLite API is **not** hosted on Vercel (persistent volume, long LL
 
 ### Connect the GitHub repo
 
-1. Import `LukViper/vibePrompt_` in Vercel (root directory = repository root; `vercel.json` already sets install/build/output).
+1. Import `LukViper/vibePrompt_` in Vercel (**Root Directory** = repository root `/`, not `frontend`). Root `vercel.json` runs `cd frontend && npm ci` / `npm run build` and publishes `frontend/dist`. If Root Directory is set to `frontend`, drop the custom install/build commands or `npm ci` will look for a missing nested lockfile and fail with EUSAGE.
 2. Set Environment Variables (Production / Preview as needed):
 
 | Variable | Purpose |
@@ -29,7 +29,7 @@ The FastAPI + SQLite API is **not** hosted on Vercel (persistent volume, long LL
 
 Do **not** set a static API secret in the SPA. The browser mints a short-lived guest JWT via `POST /api/auth/guest` (or uses a logged-in user Bearer token). Keep `API_SECRET` server-side for ops/curl only.
 
-3. On the API host, set `CORS_ORIGINS` to the exact Vercel HTTPS origin(s), e.g. `https://your-app.vercel.app`.
+3. On the API host, set `CORS_ORIGINS` to the exact Vercel HTTPS origin(s), e.g. `https://your-app.vercel.app`. For the Capacitor Android APK (see README), also allow `https://localhost`.
 4. Redeploy after env changes (Vite inlines `VITE_*` at build time).
 
 Local frontend env template: `frontend/.env.example`.

@@ -30,6 +30,13 @@ describe("parseError BYOK / quota contract", () => {
     );
     expect(err.quotaExhausted).toBe(false);
   });
+
+  it("explains empty-body 405 as unreachable API", () => {
+    const err = parseError({ status: 405 } as Response, "");
+    expect(err.status).toBe(405);
+    expect(err.code).toBe("api_unreachable");
+    expect(err.message).toMatch(/VITE_API_BASE_URL/);
+  });
 });
 
 describe("ensureGuestToken", () => {
