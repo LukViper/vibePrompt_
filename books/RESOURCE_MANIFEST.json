@@ -146,6 +146,30 @@
   "counts": {
     "acquired": 6,
     "metadata_only": 1,
-    "failed": 0
+    "failed": 0,
+    "active_release": 6,
+    "planned_pending_rights": 1
+  },
+  "release_baseline": {
+    "status": "single_node_beta",
+    "active_acquired": 6,
+    "active_titles": [
+      "Prompt Engineering",
+      "The QA Field Manual to Language Models",
+      "AI Literacy and Prompt Engineering",
+      "Vibe Coding and Loop Engineering",
+      "Agent Engineering",
+      "AI-Native Production"
+    ],
+    "planned_pending_rights": [
+      {
+        "id": "ml_systems_harvard_edge",
+        "title": "Machine Learning Systems",
+        "status": "metadata_only",
+        "note": "Repository README acquired; full PDF URL did not return a PDF body."
+      }
+    ],
+    "discovery_catalog_note": "The eight commercial TARGET_BOOKS in knowledge/catalog.py remain planned / pending-rights and are not claimed as live for beta.",
+    "claim": "Beta ships with 6 verified acquired titles; do not claim 8/8 Books-to-Skill live."
   }
 }

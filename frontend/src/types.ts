@@ -32,9 +32,18 @@ export interface Finding {
   critic_notes: string | null;
   status: FindingStatus;
   invalidation_criteria: string;
+  /** e.g. blocking_contradiction — requires state/artifact counterevidence */
+  kind?: string;
   resolution_note: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface RejectedApproach {
+  id: string;
+  approach: string;
+  reason: string;
+  created_at: string;
 }
 
 export interface Message {
@@ -72,6 +81,7 @@ export interface ProjectState {
   scope_out: string[];
   decisions: Decision[];
   tech_stack: string[];
+  rejected_approaches?: RejectedApproach[];
   findings: Finding[];
   messages: Message[];
   behavioural_mode?: BehaviouralMode;
@@ -203,7 +213,9 @@ export interface AuthConfigPublic {
   supabase_configured: boolean;
   google_oauth_hint: boolean;
   github_oauth_hint: boolean;
+  google_client_id?: string | null;
   email_auth: boolean;
+  guest_sessions_enabled?: boolean;
 }
 
 export interface AuthResponse {

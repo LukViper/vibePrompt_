@@ -1,6 +1,7 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useCallback, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { GoogleSignInButton } from "../components/auth/GoogleSignInButton";
 import { safeRedirectPath } from "../lib/supabase";
 
 export function LoginPage() {
@@ -15,6 +16,13 @@ export function LoginPage() {
   const [localError, setLocalError] = useState<string | null>(null);
 
   const err = localError || auth.error;
+  const googleClientId = useMemo(() => {
+    const fromEnv = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
+    const fromApi = (auth.config?.google_client_id || "").trim();
+    return fromEnv || fromApi;
+  }, [auth.config?.google_client_id]);
+  const showGoogleGis = Boolean(googleClientId);
+  const showSupabaseGoogle = auth.usingSupabase && auth.config?.google_oauth_hint !== false;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -54,6 +62,23 @@ export function LoginPage() {
     }
   }
 
+  const onGoogleCredential = useCallback(
+    async (idToken: string) => {
+      setLocalError(null);
+      auth.clearError();
+      setBusy(true);
+      try {
+        await auth.signInWithGoogleIdToken(idToken);
+        navigate(next, { replace: true });
+      } catch (ex) {
+        setLocalError(ex instanceof Error ? ex.message : "Google Sign-In failed");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [auth, navigate, next]
+  );
+
   return (
     <div className="auth-shell">
       <div className="auth-card">
@@ -61,28 +86,46 @@ export function LoginPage() {
         <h1>Sign in</h1>
         <p className="muted">Continue building your project plan.</p>
 
-        {auth.usingSupabase && (
+        {(showGoogleGis || showSupabaseGoogle || auth.usingSupabase) && (
           <div className="oauth-stack">
-            <button
-              type="button"
-              className="btn btn-block oauth-btn"
-              disabled={busy}
-              onClick={() => void oauth("google")}
-            >
-              Continue with Google
-            </button>
-            <button
-              type="button"
-              className="btn btn-block oauth-btn ghost"
-              disabled={busy}
-              onClick={() => void oauth("github")}
-            >
-              Continue with GitHub
-            </button>
+            {showGoogleGis ? (
+              <GoogleSignInButton
+                clientId={googleClientId}
+                disabled={busy}
+                onCredential={onGoogleCredential}
+                onError={(msg) => setLocalError(msg)}
+              />
+            ) : showSupabaseGoogle ? (
+              <button
+                type="button"
+                className="btn btn-block oauth-btn"
+                disabled={busy}
+                onClick={() => void oauth("google")}
+              >
+                Continue with Google
+              </button>
+            ) : null}
+            {auth.usingSupabase && (
+              <button
+                type="button"
+                className="btn btn-block oauth-btn ghost"
+                disabled={busy}
+                onClick={() => void oauth("github")}
+              >
+                Continue with GitHub
+              </button>
+            )}
             <div className="auth-divider">
               <span>or email</span>
             </div>
           </div>
+        )}
+
+        {!showGoogleGis && !auth.usingSupabase && (
+          <p className="muted google-setup-hint">
+            Google Sign-In needs <code>GOOGLE_OAUTH_CLIENT_ID</code> /{" "}
+            <code>VITE_GOOGLE_CLIENT_ID</code> from Google Cloud Console.
+          </p>
         )}
 
         <form onSubmit={(e) => void onSubmit(e)} className="auth-form">
@@ -118,15 +161,8 @@ export function LoginPage() {
             <Link to="/forgot-password">Forgot password?</Link>
           )}
           <Link to={`/signup?next=${encodeURIComponent(next)}`}>Create an account</Link>
-          <Link to="/">Back to app</Link>
+          <Link to="/">Back to workspace</Link>
         </div>
-
-        {auth.usingSupabase && (
-          <p className="muted small">
-            Google/GitHub work only after providers are enabled in Supabase and credentials are
-            configured — see AUTH_SETUP.md.
-          </p>
-        )}
       </div>
     </div>
   );

@@ -8,7 +8,13 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from app.api.deps import get_knowledge_store, get_settings, get_skill_registry, require_admin
+from app.api.deps import (
+    get_knowledge_store,
+    get_settings,
+    get_skill_registry,
+    require_admin,
+    require_api_secret,
+)
 from app.auth.models import UserRecord
 from app.config import Settings
 from app.knowledge.acquisition.discovery import build_acquisition_report, discover_all, discover_book
@@ -44,7 +50,11 @@ from app.skills.models import (
 )
 from app.skills.registry import SkillRegistry
 
-router = APIRouter(prefix="/knowledge", tags=["knowledge"])
+router = APIRouter(
+    prefix="/knowledge",
+    tags=["knowledge"],
+    dependencies=[Depends(require_api_secret)],
+)
 
 
 def _actor(user: UserRecord) -> str:

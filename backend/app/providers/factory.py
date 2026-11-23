@@ -84,9 +84,10 @@ def build_providers(settings: Settings) -> ProviderBundle:
             supports_critic=True,
         )
 
+    force_offline = settings.demo_mode or not settings.primary_configured
     return ProviderBundle(
         primary=primary,
-        critic=critic,
-        using_offline_primary=not settings.primary_configured,
-        chain_providers=chain,
+        critic=None if settings.demo_mode else critic,
+        using_offline_primary=force_offline,
+        chain_providers=[] if settings.demo_mode else chain,
     )

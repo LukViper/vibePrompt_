@@ -11,7 +11,7 @@
 
 | Area | Path | Role |
 |------|------|------|
-| Catalog | `knowledge/catalog.py` | Eight target books + legal source hints |
+| Catalog | `knowledge/catalog.py` | Eight discovery targets (`planned_pending_rights`) + legal source hints; beta active baseline = 6 acquired titles in `books/` |
 | Acquisition | `knowledge/acquisition/` | Discovery, licensing checks, authorized download only |
 | Store | `knowledge/store.py` | Books, files, jobs, concepts, audit |
 | Pipeline | `knowledge/pipeline/` | Validate → extract → clean → segment → concepts |

@@ -56,7 +56,11 @@ def tmp_settings(tmp_path: Path) -> Settings:
 
 @pytest.fixture()
 def store(tmp_settings: Settings) -> KnowledgeStore:
-    return KnowledgeStore(tmp_settings.database_path, skills_root=tmp_settings.skills_dir)
+    return KnowledgeStore(
+        tmp_settings.database_path,
+        skills_root=tmp_settings.skills_dir,
+        upload_root=tmp_settings.knowledge_upload_dir,
+    )
 
 
 @pytest.fixture()
@@ -131,7 +135,9 @@ def test_pipeline_extract_generate_approve_retrieve(
     store: KnowledgeStore, registry: SkillRegistry, tmp_path: Path
 ):
     # Synthetic rights-confirmed "book" — independently authored sample, not a copyrighted work.
-    sample = tmp_path / "mom_test_sample.txt"
+    # Must live under the knowledge upload root (path-traversal containment).
+    sample = Path(store.upload_root) / "mom_test_sample.txt"
+    sample.parent.mkdir(parents=True, exist_ok=True)
     sample.write_text(
         """
 CHAPTER 1 Asking Better Questions

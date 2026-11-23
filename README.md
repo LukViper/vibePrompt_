@@ -4,6 +4,8 @@ Evidence-driven adversarial project reviewer. Grill challenges weak assumptions,
 
 **Product principle:** Be difficult to convince with unsupported claims, but easy to convince with good evidence.
 
+**v1 positioning:** Evidence-backed **single-node beta** (SQLite WAL, single-writer boundary, BYOK + capped free tier / guest JWT). Not a horizontally scaled multi-tenant public SaaS. Split deploy: Vercel SPA → external FastAPI node. Offline heuristic fallback is for demos/tests — live LLM Grill requires provider keys. Multi-model critic claims are **benchmark/harness-scoped**, not proven marketing superiority.
+
 ## Architecture
 
 Modular monolith:
@@ -15,8 +17,8 @@ Modular monolith:
 | `backend/app/grill/` | Review policy, finding lifecycle, critic reconciliation |
 | `backend/app/projects/` | Structured project state |
 | `backend/app/compilation/` | Deterministic readiness gate + Markdown specification compiler |
-| `backend/app/persistence/` | SQLite repository (swappable) |
-| `backend/app/api/` | FastAPI HTTP API |
+| `backend/app/persistence/` | SQLite (local-dev) / PostgreSQL (prod via Neon) |
+| `backend/app/api/` | FastAPI HTTP API (`/api/v1` + `/api` alias) |
 | `backend/app/knowledge/` | Book discovery, legal acquisition, processing pipeline |
 | `backend/app/skills/` | Skill registry, Book-to-Skill drafts, mode-scoped retrieval |
 | `frontend/` | React + TypeScript + Vite UI |
@@ -29,11 +31,19 @@ Modular monolith:
 
 ## Prerequisites
 
-- Python 3.11+ (tested on 3.14)
+- **Python 3.11–3.13 recommended** (also exercised on 3.14 locally). Pin CI/dev to 3.11+; treat 3.14 as forward-compat, not the only supported runtime.
 - Node.js 20+
-- Optional: `GEMINI_API_KEY`, `GROQ_API_KEY` for live model calls
+- Optional: `GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, or BYOK for **live** Grill quality
 
-Without API keys the backend runs an **offline heuristic primary** so local demos and tests still work.
+Without provider keys the backend uses an **offline heuristic primary** — fine for UI/API demos and tests, **not** a substitute for adversarial LLM review. Prefer `DEMO_MODE=true` or `python -m app --demo` when you want that limitation explicit. The SPA shows a persistent banner: **Offline heuristic mode — not live adversarial review.**
+
+### Git guards
+
+```bash
+git config core.hooksPath .githooks   # enables scripts/pre-push-secret-scan.sh
+```
+
+Never commit `backend/.env`, real `JWT_SECRET` / `CREDENTIALS_ENCRYPTION_KEY`, or live API keys. Use `.env.example` placeholders only. CI runs pytest + `tsc --noEmit` + vitest on push/PR.
 
 ## Quick start
 
@@ -49,7 +59,15 @@ mkdir -p data
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Health check: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
+**Demo / offline-only** (no live providers, even if keys exist):
+
+```bash
+DEMO_MODE=true uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# or
+python -m app --demo --reload
+```
+
+Health check: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health) — `providers.demo_mode` is `true` when offline demo is forced.
 
 ### Frontend
 
@@ -61,9 +79,52 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173). Vite proxies `/api` to the backend.
 
+Frontend unit tests (Vitest):
+
+```bash
+cd frontend
+npm test
+```
+
+### Android APK (Capacitor)
+
+The React SPA is wrapped with Capacitor (`frontend/android/`). The APK talks to your **hosted API** over HTTPS — there is no Vite `/api` proxy on device.
+
+**Prerequisites:** Android Studio (or cmdline-tools + SDK 35), JDK 17+ recommended for Gradle (OpenJDK 21 also works on many setups).
+
+```bash
+cd frontend
+# Point at your live API (required for the APK)
+echo 'VITE_API_BASE_URL=https://your-api.example.com/api' > .env
+
+npm run android:sync          # build SPA → copy into android/
+npm run android:open          # opens Android Studio
+# In Android Studio: Build → Build Bundle(s) / APK(s) → Build APK(s)
+# Debug APK: android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+CLI-only debug APK (with SDK installed and `ANDROID_HOME` set):
+
+```bash
+cd frontend/android
+./gradlew assembleDebug
+```
+
+On the API host, add Capacitor’s WebView origin to `CORS_ORIGINS` (typically `https://localhost` with `androidScheme: "https"`). Do not ship a debug APK pointed at `api.example.com` placeholders.
+
+### CLI (local readiness gate)
+
+```bash
+cd backend
+python -m app.cli review --project ../path/to/app --fail-on-block
+# Live: add --api-base http://127.0.0.1:8000/api/v1 --token "$TOKEN"
+```
+
+See [docs/PHASE2_COMMERCIAL.md](docs/PHASE2_COMMERCIAL.md) for ROI, collab, vertical packs, and integration stubs.
+
 ### Vercel (UI)
 
-The SPA deploys from the repo root via `vercel.json`. Host the FastAPI API separately (compose), set `VITE_API_BASE_URL` / `VITE_API_SECRET` / optional Supabase `VITE_*` in Vercel, and put the Vercel origin in API `CORS_ORIGINS`. Details: `docs/DEPLOYMENT_AND_RECOVERY.md`.
+The SPA deploys from the repo root via `vercel.json`. Host the FastAPI API separately (compose), set `VITE_API_BASE_URL` / optional Supabase `VITE_*` in Vercel, and put the Vercel origin in API `CORS_ORIGINS`. The SPA mints a short-lived **guest JWT** (`POST /api/auth/guest`) — do **not** bundle `API_SECRET` in the frontend. Details: `docs/DEPLOYMENT_AND_RECOVERY.md`.
 
 ## Configuration
 
@@ -88,7 +149,7 @@ See `backend/.env.example`.
 | `FAILOVER_TOTAL_BUDGET_SECONDS` | Cap total failover wait | `45` |
 | `MAX_OUTPUT_TOKENS` | Cap model output | `2048` |
 | `DATABASE_PATH` | SQLite file | `./data/vibeprompt.db` |
-| `API_SECRET` | Optional shared secret (`X-API-Secret`) | empty |
+| `API_SECRET` | Ops/server shared secret (`X-API-Secret`); SPA uses guest/user JWT instead | empty |
 | `CORS_ORIGINS` | Allowed browser origins | localhost Vite |
 | `FREE_TIER_ENABLED` | Platform-funded Qwen free tier + BYOK hybrid | `false` |
 | `FREE_TIER_PROVIDER` | Free-tier provider (must be `qwen`) | `qwen` |
@@ -107,10 +168,13 @@ See `backend/.env.example`.
 
 ### Knowledge Library (Book-to-Skill)
 
-Administrators can discover the eight target books, register legal acquisition options, upload rights-confirmed PDF/EPUB/TXT/DOCX, process them into abstracted concepts (not quotations), generate **draft** skills, evaluate, approve, and roll back. Approved skills inject a short ranked principle block into Chat / Brainstorm / Grill — never entire books.
+Administrators can discover catalog titles, register legal acquisition options, upload rights-confirmed PDF/EPUB/TXT/DOCX, process them into abstracted concepts (not quotations), generate **draft** skills, evaluate, approve, and roll back. Approved skills inject a short ranked principle block into Chat / Brainstorm / Grill — never entire books.
+
+**Beta baseline:** **6 verified acquired titles** in `books/` are the active release set. The eight commercial `TARGET_BOOKS` catalog entries remain **planned / pending-rights** — do not claim 8/8 live.
 
 - Architecture: `docs/BOOK_TO_SKILL_ARCHITECTURE.md`
-- Acquisition report: `docs/ACQUISITION_REPORT.md` (all eight titles currently require purchase/library/manual upload — no fabricated downloads)
+- Acquisition report: `docs/ACQUISITION_REPORT.md` (commercial catalog titles require purchase/library/manual upload — no fabricated downloads)
+- Manifest: `books/RESOURCE_MANIFEST.json` (`release_baseline.active_acquired = 6`)
 - UI: sign in → **Knowledge Library** in the sidebar
 
 The system refuses pirate sources and will not auto-download commercial titles without an authorized open-access URL.
@@ -119,10 +183,11 @@ The system refuses pirate sources and will not auto-download commercial titles w
 
 When `FREE_TIER_ENABLED=true`:
 
-1. New users receive a **one-time** free generation allowance (default 20) funded by the platform’s shared `QWEN_API_KEY`.
-2. Successful AI reviews consume one generation; failures and conversation-only turns do not.
-3. After exhaustion, users must configure **BYOK** (Gemini / OpenRouter / Groq / Qwen). Stored keys are encrypted; raw keys are never returned by the API.
-4. BYOK users keep using their selected provider/model; the platform never silently switches an exhausted user to another platform-funded provider.
+1. Guests mint a short-lived JWT (`POST /api/auth/guest`) with a hard generation cap; registered users receive a **one-time** free allowance (default 20) funded by the platform’s shared `QWEN_API_KEY`.
+2. Per-session / per-IP rate limits plus a global daily circuit breaker guard the shared key; exhaustion returns `429` prompting BYOK.
+3. Successful AI reviews consume one generation; failures and conversation-only turns do not.
+4. After exhaustion, users must configure **BYOK** (Gemini / OpenRouter / Groq / Qwen). Stored keys are encrypted; raw keys are never returned by the API.
+5. BYOK users keep using their selected provider/model; the platform never silently switches an exhausted user to another platform-funded provider.
 
 Legacy mode (`FREE_TIER_ENABLED=false`) keeps the previous Gemini → OpenRouter → Groq → offline chain.
 
@@ -161,7 +226,7 @@ pytest -v
 
 Coverage includes unrealistic scope, heavyweight infra, contradictions, sound decisions, counterevidence, insistence, resolved findings, critic reject/add-risk, malformed output, timeouts/rate limits, missing keys, compilation gates, prompt injection, secret non-exposure, multi-project isolation, and end-to-end create→review→spec.
 
-Evaluation fixtures comparing primary-only vs two-model call counts live in `backend/tests/evaluation/`. Results are written to `backend/tests/evaluation/results/` (gitignored). **Do not claim multi-model superiority beyond what those metrics show.**
+Evaluation fixtures comparing primary-only vs two-model call counts live in `backend/tests/evaluation/`. Results are written to `backend/tests/evaluation/results/` (gitignored). **Any multi-model / critic superiority statement must cite those harness metrics — never unqualified marketing claims.**
 
 ## Privacy & provider data handling
 
@@ -182,9 +247,10 @@ Deterministic. Critical/high open findings and missing essentials block compilat
 
 ## Known limitations
 
-- Offline heuristic primary is a thin stand-in for Gemini — useful for demos/tests, not a substitute for a live model.
-- Critic reconciliation is conservative (high-impact findings are demoted, not silently deleted, on critic disagreement).
-- Free-tier mode adds JWT auth + BYOK; keep `FREE_TIER_ENABLED=false` for the legacy single-tenant demo. Change `JWT_SECRET` and `CREDENTIALS_ENCRYPTION_KEY` before any public deploy.
+- **Single-node SQLite** is the v1 beta datastore (prefer WAL + single-writer). It is **not** safe for multi-writer horizontal scale or multi-tenant SaaS. If that becomes a requirement, plan a migration to PostgreSQL (swap `ProjectRepository` / `UserStore` persistence; schema is already explicit in `backend/app/persistence/`). Keep product copy honest about single-node until then.
+- **Offline heuristic / `DEMO_MODE`** is a thin stand-in for live providers — useful for demos/tests and CI without keys, **not** adversarial LLM Grill quality. Onboarding and `/api/health` surface this when demo mode is on.
+- Critic reconciliation is conservative (high-impact findings are demoted, not silently deleted, on critic disagreement). **Multi-model superiority claims are fixture/harness-scoped only** — cite `backend/tests/evaluation/results/` metrics; do not use unqualified “two-model is better” marketing.
+- Free-tier / guest mode uses capped shared-platform generations + BYOK; keep `FREE_TIER_ENABLED=false` for the legacy single-tenant demo. Change `JWT_SECRET` and `CREDENTIALS_ENCRYPTION_KEY` before any public deploy.
 - Live Gemini/Groq integrations are implemented against current REST APIs but not exercised in CI without keys.
 
 ## License

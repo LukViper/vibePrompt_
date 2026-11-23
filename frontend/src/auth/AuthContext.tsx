@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { api, setToken } from "../api/client";
+import { api, ensureGuestToken, setToken } from "../api/client";
 import { authCallbackUrl, getSupabase, passwordResetRedirectUrl, supabaseConfigured } from "../lib/supabase";
 import type { AuthConfigPublic, UserPublic } from "../types";
 
@@ -24,6 +24,7 @@ type AuthContextValue = {
   signInWithPassword: (email: string, password: string) => Promise<void>;
   signUpWithPassword: (email: string, password: string) => Promise<{ needsEmailConfirm: boolean }>;
   signInWithOAuth: (provider: "google" | "github") => Promise<void>;
+  signInWithGoogleIdToken: (idToken: string) => Promise<void>;
   signInLegacy: (email: string, password: string) => Promise<void>;
   registerLegacy: (email: string, password: string) => Promise<void>;
   resetPasswordForEmail: (email: string) => Promise<void>;
@@ -104,9 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             google_oauth_hint: false,
             github_oauth_hint: false,
             email_auth: true,
+            guest_sessions_enabled: true,
           });
         }
       }
+
+      // Browser clients use short-lived guest JWTs instead of a bundled API secret.
+      await ensureGuestToken();
 
       const sb = getSupabase();
       if (sb) {
@@ -128,12 +133,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
 
-      // Legacy token boot
+      // Legacy user-token boot (ignore guest JWTs — they are not signed-in accounts)
       try {
         const me = await api.me();
-        if (!cancelled) setProfile(me);
+        if (!cancelled) {
+          if (me.auth_provider === "guest") {
+            setProfile(null);
+          } else {
+            setProfile(me);
+          }
+        }
       } catch {
-        setToken(null);
+        // Do not clear guest sessionStorage token on /me failure
         if (!cancelled) setProfile(null);
       }
       if (!cancelled) setLoading(false);
@@ -204,6 +215,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setError(err.message);
           throw err;
         }
+      },
+      signInWithGoogleIdToken: async (idToken) => {
+        setError(null);
+        const res = await api.loginWithGoogle(idToken);
+        setToken(res.access_token);
+        setProfile(res.user);
       },
       signInLegacy: async (email, password) => {
         setError(null);

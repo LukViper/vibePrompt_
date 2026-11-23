@@ -34,7 +34,11 @@ def get_user_store() -> UserStore:
 @lru_cache
 def get_knowledge_store() -> KnowledgeStore:
     settings = get_settings()
-    return KnowledgeStore(settings.database_path, skills_root=settings.skills_dir)
+    return KnowledgeStore(
+        settings.database_path,
+        skills_root=settings.skills_dir,
+        upload_root=settings.knowledge_upload_dir,
+    )
 
 
 @lru_cache
@@ -64,18 +68,52 @@ def get_engine(
     )
 
 
+_PUBLIC_API_SUFFIXES = (
+    "/health",
+    "/health/ready",
+    "/auth/config",
+    "/auth/guest",
+    "/auth/register",
+    "/auth/login",
+    "/auth/google",
+    "/billing/webhook",
+    "/integrations/github/webhook",
+)
+
+
+def _is_public_bootstrap_path(path: str) -> bool:
+    normalized = (path or "").rstrip("/") or "/"
+    return any(normalized.endswith(suffix) for suffix in _PUBLIC_API_SUFFIXES)
+
+
+def _bearer_payload_ok(token: str, settings: Settings) -> bool:
+    try:
+        payload = decode_access_token(token, settings.jwt_secret)
+    except jwt.PyJWTError:
+        return False
+    return bool(payload.get("sub"))
+
+
 def require_api_secret(
     request: Request,
     x_api_secret: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
     settings: Settings = Depends(get_settings),
 ) -> None:
     """
-    Shared API secret gate.
+    Shared API gate for browser + ops clients.
 
-    Production: API_SECRET is mandatory (validated at startup); every request must
-    present a matching X-API-Secret header.
-    Development: optional — when unset, local demos work without the header.
+    Prefer short-lived Bearer JWTs (user or guest). Static X-API-Secret remains
+    valid for server-to-server/ops curl — it must NOT be bundled in the SPA.
+    Bootstrap auth routes are public so the SPA can mint a guest JWT first.
     """
+    if _is_public_bootstrap_path(request.url.path):
+        return
+
+    token = _bearer_token(authorization)
+    if token and _bearer_payload_ok(token, settings):
+        return
+
     secret = (settings.api_secret or "").strip()
     if settings.is_production:
         if not secret:
@@ -83,13 +121,20 @@ def require_api_secret(
                 status_code=503,
                 detail="Server misconfigured: API_SECRET required in production",
             )
-        if not x_api_secret or x_api_secret != secret:
-            raise HTTPException(status_code=401, detail="Invalid or missing API secret")
-        return
+        if x_api_secret and x_api_secret == secret:
+            return
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required (Bearer guest/user JWT or X-API-Secret)",
+        )
     if not secret:
         return
-    if x_api_secret != secret:
-        raise HTTPException(status_code=401, detail="Invalid or missing API secret")
+    if x_api_secret == secret:
+        return
+    raise HTTPException(
+        status_code=401,
+        detail="Authentication required (Bearer guest/user JWT or X-API-Secret)",
+    )
 
 
 def _bearer_token(authorization: str | None) -> str | None:
@@ -134,7 +179,13 @@ def _user_from_legacy_token(
     user_id = payload.get("sub")
     if not user_id:
         return None
-    return store.get_user(str(user_id))
+    user = store.get_user(str(user_id))
+    if user is None:
+        return None
+    if (payload.get("role") or user.auth_provider) == "guest":
+        if store.guest_session_expired(str(user_id)):
+            return None
+    return user
 
 
 def get_optional_user(

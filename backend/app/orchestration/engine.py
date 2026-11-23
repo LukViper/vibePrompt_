@@ -101,6 +101,49 @@ class GrillEngine:
         idempotency_key: str | None = None,
         behavioural_mode: BehaviouralMode | None = None,
     ) -> ChatResponse:
+        from app.observability.tracing import (
+            Timer,
+            estimate_cost_usd,
+            log_generation_cost,
+            new_trace_id,
+            span,
+        )
+
+        timer = Timer()
+        trace_id = new_trace_id()
+        with span(
+            "grill.handle_message",
+            project_id=project_id,
+            user_id=user_id or "",
+            trace_id=trace_id,
+        ):
+            return await self._handle_message_inner(
+                project_id,
+                content,
+                user_id=user_id,
+                idempotency_key=idempotency_key,
+                behavioural_mode=behavioural_mode,
+                trace_id=trace_id,
+                timer=timer,
+                estimate_cost_usd=estimate_cost_usd,
+                log_generation_cost=log_generation_cost,
+                span=span,
+            )
+
+    async def _handle_message_inner(
+        self,
+        project_id: str,
+        content: str,
+        *,
+        user_id: str | None = None,
+        idempotency_key: str | None = None,
+        behavioural_mode: BehaviouralMode | None = None,
+        trace_id: str = "",
+        timer=None,
+        estimate_cost_usd=None,
+        log_generation_cost=None,
+        span=None,
+    ) -> ChatResponse:
         project = self.repo.get(project_id)
         if project is None:
             raise KeyError(f"Project {project_id} not found")
@@ -137,16 +180,42 @@ class GrillEngine:
                     "Authentication required to generate with free tier or BYOK.",
                     code=InferenceRouteErrorCode.AUTH_REQUIRED.value,
                 )
+            guest_row = self.user_store.get_guest_session(user_id)
+            is_guest = guest_row is not None
+            if is_guest and self.user_store.guest_session_expired(user_id):
+                raise FreeTierExhaustedError(
+                    "Guest session expired. Refresh the page or sign in / configure BYOK.",
+                    code=InferenceRouteErrorCode.AUTH_REQUIRED.value,
+                )
+            per_min = (
+                self.settings.guest_rate_limit_per_minute
+                if is_guest
+                else self.settings.free_tier_rate_limit_per_minute
+            )
             allowed, _remaining = self.user_store.check_and_increment_rate_limit(
-                f"user:{user_id}:gen",
-                limit=self.settings.free_tier_rate_limit_per_minute,
+                f"{'guest' if is_guest else 'user'}:{user_id}:gen",
+                limit=per_min,
                 window_seconds=60,
             )
             if not allowed:
                 raise FreeTierExhaustedError(
-                    "Rate limit exceeded. Please wait before generating again.",
+                    "Rate limit exceeded. Please wait before generating again, or configure BYOK.",
                     code=InferenceRouteErrorCode.RATE_LIMITED.value,
                 )
+            # Sybil guard: all guest JWTs minted from the same IP share one daily quota.
+            if is_guest:
+                ip_hash = (guest_row or {}).get("ip_hash") or "unknown"
+                ip_ok, _ = self.user_store.check_and_increment_rate_limit(
+                    f"guest-ip:{ip_hash}:gen-daily",
+                    limit=self.settings.guest_ip_daily_generations,
+                    window_seconds=86_400,
+                )
+                if not ip_ok:
+                    raise FreeTierExhaustedError(
+                        "Guest free-tier capacity for this network is exhausted. "
+                        "Sign in or configure BYOK to continue.",
+                        code=InferenceRouteErrorCode.RATE_LIMITED.value,
+                    )
             try:
                 resolved = resolve_inference(
                     settings=self.settings,
@@ -161,10 +230,26 @@ class GrillEngine:
             route_provider = resolved.provider
             route_model = resolved.model
             metrics.funding_source = funding.value
+            # Shared platform key circuit breaker (guest + registered free tier)
+            if funding == FundingSource.PLATFORM:
+                ok, _left = self.user_store.check_and_increment_global_counter(
+                    "qwen_platform_daily",
+                    limit=self.settings.qwen_global_daily_request_cap,
+                    window_seconds=86_400,
+                )
+                if not ok:
+                    raise FreeTierExhaustedError(
+                        "Platform free-tier capacity is exhausted for today. "
+                        "Configure BYOK to continue.",
+                        code=InferenceRouteErrorCode.RATE_LIMITED.value,
+                    )
 
         critic_available = bool(
             critic and critic.is_available() and self.settings.critic_enabled
         )
+        if span is not None:
+            with span("grill.policy_decision", mode=mode.value):
+                pass
         policy = decide_review_policy(
             message=content,
             project=project,
@@ -524,6 +609,30 @@ class GrillEngine:
             free_tier_status = build_status(
                 self.settings, self.user_store, user_id
             ).model_dump()
+
+        latency_ms = timer.ms() if timer is not None else 0.0
+        cost = 0.0
+        if estimate_cost_usd is not None:
+            cost = float(
+                estimate_cost_usd(
+                    self.settings,
+                    input_tokens=None,
+                    output_tokens=None,
+                )
+            )
+        if log_generation_cost is not None:
+            log_generation_cost(
+                trace_id=trace_id,
+                provider=metrics.provider_used,
+                model=route_model,
+                latency_ms=latency_ms,
+                input_tokens=None,
+                output_tokens=None,
+                cost_usd=cost,
+                success=not metrics.offline_review or bool(metrics.provider_used),
+                project_id=project_id,
+                user_id=user_id,
+            )
 
         return ChatResponse(
             message=assistant,

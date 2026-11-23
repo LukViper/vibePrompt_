@@ -75,6 +75,8 @@ class CandidateFinding(BaseModel):
     potential_impact: str = ""
     recommended_next_step: str = ""
     invalidation_criteria: str = ""
+    # e.g. blocking_contradiction — insistence alone cannot clear these
+    kind: str = ""
 
 
 class StatePatch(BaseModel):

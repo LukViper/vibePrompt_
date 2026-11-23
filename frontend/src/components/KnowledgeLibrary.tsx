@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import type {
   AcquisitionReport,
   BookPreview,
@@ -20,6 +21,7 @@ const RIGHTS_FALLBACK =
   "I confirm I have the legal right to upload and process this material for generating abstracted skill instructions, and I will not use VibePrompt to reproduce substantial copyrighted passages.";
 
 export function KnowledgeLibrary({ onClose, onError }: Props) {
+  useEscapeKey(onClose);
   const [tab, setTab] = useState<Tab>("collection");
   const [books, setBooks] = useState<BookRecord[]>([]);
   const [catalog, setCatalog] = useState<CatalogBook[]>([]);
@@ -194,7 +196,9 @@ export function KnowledgeLibrary({ onClose, onError }: Props) {
           <div>
             <h2>Books-to-Skill / Knowledge Library</h2>
             <p className="muted">
-              Upload legitimate books, extract abstractions, generate skills, orchestrate them in chat. No pirate downloads.
+              Single-node beta baseline: <strong>6 verified acquired titles</strong> active.
+              Catalog discovery titles are <em>planned / pending-rights</em> — not claimed live.
+              Upload rights-confirmed books only; no pirate downloads.
             </p>
           </div>
           <button type="button" className="btn btn-ghost" onClick={onClose}>

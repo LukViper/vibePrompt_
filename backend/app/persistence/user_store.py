@@ -82,6 +82,16 @@ class UserStore:
                 conn.commit()
             except sqlite3.IntegrityError as exc:
                 raise ValueError("Email already registered") from exc
+            from app.persistence.tenancy import ensure_personal_org
+
+            org_id = ensure_personal_org(
+                conn, user_id=user_id, email=email.strip().lower()
+            )
+            conn.execute(
+                "UPDATE users SET default_org_id = ? WHERE id = ?",
+                (org_id, user_id),
+            )
+            conn.commit()
         return UserRecord(
             id=user_id,
             email=email.strip().lower(),
@@ -663,6 +673,171 @@ class UserStore:
                     pass
                 raise
 
+    def check_and_increment_global_counter(
+        self,
+        counter_key: str,
+        *,
+        limit: int,
+        window_seconds: int,
+    ) -> tuple[bool, int]:
+        """Global circuit breaker (e.g. shared QWEN_API_KEY daily cap)."""
+        now = utcnow()
+        window_start = datetime.fromtimestamp(
+            (int(now.timestamp()) // window_seconds) * window_seconds,
+            tz=timezone.utc,
+        )
+        window_iso = _iso(window_start)
+        with self._lock, self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                row = conn.execute(
+                    "SELECT * FROM global_usage_counters WHERE counter_key = ?",
+                    (counter_key,),
+                ).fetchone()
+                if not row or row["window_start"] != window_iso:
+                    conn.execute(
+                        """
+                        INSERT INTO global_usage_counters (counter_key, window_start, request_count)
+                        VALUES (?, ?, 1)
+                        ON CONFLICT(counter_key) DO UPDATE SET
+                            window_start = excluded.window_start,
+                            request_count = 1
+                        """,
+                        (counter_key, window_iso),
+                    )
+                    conn.execute("COMMIT")
+                    return True, max(limit - 1, 0)
+                if row["request_count"] >= limit:
+                    conn.execute("COMMIT")
+                    return False, 0
+                conn.execute(
+                    """
+                    UPDATE global_usage_counters
+                    SET request_count = request_count + 1
+                    WHERE counter_key = ?
+                    """,
+                    (counter_key,),
+                )
+                remaining = max(limit - (row["request_count"] + 1), 0)
+                conn.execute("COMMIT")
+                return True, remaining
+            except Exception:
+                try:
+                    conn.execute("ROLLBACK")
+                except sqlite3.Error:
+                    pass
+                raise
+
+    # --------------------------------------------------------------- guests
+    def create_guest_session(
+        self,
+        *,
+        ip_hash: str | None,
+        generations: int,
+        expires_minutes: int,
+        provider: str,
+        model: str,
+    ) -> tuple[UserRecord, dict[str, Any]]:
+        """
+        Mint a synthetic guest user + capped free-tier allocation.
+        Returns (user, session_row).
+        """
+        guest_id = new_id("gst_")
+        created = utcnow()
+        expires = created.timestamp() + expires_minutes * 60
+        expires_at = datetime.fromtimestamp(expires, tz=timezone.utc)
+        day_key = created.strftime("%Y-%m-%d")
+        email = f"{guest_id}@guest.local"
+        with self._lock, self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO users (
+                        id, email, password_hash, display_name, avatar_url,
+                        auth_provider, created_at
+                    ) VALUES (?, ?, '', 'Guest', NULL, 'guest', ?)
+                    """,
+                    (guest_id, email, _iso(created)),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO guest_sessions (
+                        id, ip_hash, generations_allocated, generations_used,
+                        created_at, expires_at, day_key
+                    ) VALUES (?, ?, ?, 0, ?, ?, ?)
+                    """,
+                    (
+                        guest_id,
+                        ip_hash or "",
+                        generations,
+                        _iso(created),
+                        _iso(expires_at),
+                        day_key,
+                    ),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO free_tier_allocations (
+                        user_id, generations_allocated, generations_used,
+                        provider, model, created_at, updated_at
+                    ) VALUES (?, ?, 0, ?, ?, ?, ?)
+                    """,
+                    (
+                        guest_id,
+                        generations,
+                        provider,
+                        model,
+                        _iso(created),
+                        _iso(created),
+                    ),
+                )
+                conn.execute("COMMIT")
+            except Exception:
+                try:
+                    conn.execute("ROLLBACK")
+                except sqlite3.Error:
+                    pass
+                raise
+        user = UserRecord(
+            id=guest_id,
+            email=email,
+            password_hash="",
+            display_name="Guest",
+            auth_provider="guest",
+            created_at=created,
+        )
+        session = {
+            "id": guest_id,
+            "ip_hash": ip_hash or "",
+            "generations_allocated": generations,
+            "generations_used": 0,
+            "created_at": _iso(created),
+            "expires_at": _iso(expires_at),
+            "day_key": day_key,
+        }
+        return user, session
+
+    def get_guest_session(self, guest_id: str) -> dict[str, Any] | None:
+        with self._lock, self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM guest_sessions WHERE id = ?",
+                (guest_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def guest_session_expired(self, guest_id: str) -> bool:
+        row = self.get_guest_session(guest_id)
+        if not row:
+            return True
+        try:
+            exp = datetime.fromisoformat(row["expires_at"])
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            return utcnow() >= exp
+        except (TypeError, ValueError):
+            return True
+
     # ----------------------------------------------------------- project owner
     def set_project_owner(self, project_id: str, owner_id: str) -> None:
         with self._lock, self._connect() as conn:
@@ -691,3 +866,400 @@ class UserStore:
         if not row:
             return None
         return row["owner_id"]
+
+    # ----------------------------------------------------------- org / tenancy
+    def ensure_user_org(self, user_id: str, email: str | None = None) -> str:
+        from app.persistence.tenancy import ensure_personal_org
+
+        with self._lock, self._connect() as conn:
+            org_id = ensure_personal_org(conn, user_id=user_id, email=email)
+            conn.execute(
+                "UPDATE users SET default_org_id = COALESCE(default_org_id, ?) WHERE id = ?",
+                (org_id, user_id),
+            )
+            conn.commit()
+            return org_id
+
+    def get_default_org_id(self, user_id: str) -> str | None:
+        with self._lock, self._connect() as conn:
+            row = conn.execute(
+                "SELECT default_org_id FROM users WHERE id = ?", (user_id,)
+            ).fetchone()
+        if not row:
+            return None
+        return row["default_org_id"]
+
+    def get_org_plan(self, org_id: str) -> str:
+        from app.persistence.tenancy import get_org
+
+        with self._lock, self._connect() as conn:
+            org = get_org(conn, org_id)
+        return (org.plan if org else "free") or "free"
+
+    def set_org_plan(
+        self,
+        org_id: str,
+        plan: str,
+        *,
+        stripe_customer_id: str | None = None,
+        stripe_subscription_id: str | None = None,
+    ) -> None:
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE organizations SET
+                    plan = ?,
+                    stripe_customer_id = COALESCE(?, stripe_customer_id),
+                    stripe_subscription_id = COALESCE(?, stripe_subscription_id),
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    plan,
+                    stripe_customer_id,
+                    stripe_subscription_id,
+                    _iso(),
+                    org_id,
+                ),
+            )
+            conn.commit()
+
+    def get_membership_role(self, org_id: str, user_id: str) -> str | None:
+        from app.persistence.tenancy import get_membership
+
+        with self._lock, self._connect() as conn:
+            m = get_membership(conn, org_id=org_id, user_id=user_id)
+        return m.role if m else None
+
+    def emit_audit(
+        self,
+        *,
+        org_id: str,
+        action: str,
+        target_type: str,
+        target_id: str | None = None,
+        user_id: str | None = None,
+        before: Any = None,
+        after: Any = None,
+    ) -> str:
+        from app.persistence.audit import emit_audit
+
+        with self._lock, self._connect() as conn:
+            audit_id = emit_audit(
+                conn,
+                org_id=org_id,
+                action=action,
+                target_type=target_type,
+                target_id=target_id,
+                user_id=user_id,
+                before=before,
+                after=after,
+            )
+            conn.commit()
+            return audit_id
+
+    def list_audit(self, org_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
+        from app.persistence.audit import list_audit
+
+        with self._lock, self._connect() as conn:
+            return list_audit(conn, org_id=org_id, limit=limit)
+
+    def org_allows_unlimited(self, org_id: str | None) -> bool:
+        if not org_id:
+            return False
+        from app.persistence.tenancy import plan_allows_unlimited_reviews
+
+        plan = self.get_org_plan(org_id)  # type: ignore[arg-type]
+        return plan_allows_unlimited_reviews(plan)  # type: ignore[arg-type]
+
+    def admin_usage_metrics(self, *, limit: int = 50) -> dict[str, Any]:
+        """Cost / latency aggregates for admin dashboard (API-first)."""
+        with self._lock, self._connect() as conn:
+            cols = {
+                r[1]
+                for r in conn.execute("PRAGMA table_info(generation_usage)").fetchall()
+            }
+            cost_col = "cost_usd_estimate" if "cost_usd_estimate" in cols else "NULL"
+            lat_col = "latency_ms" if "latency_ms" in cols else "NULL"
+            proj_col = "project_id" if "project_id" in cols else "NULL"
+            by_user = conn.execute(
+                f"""
+                SELECT user_id,
+                       COUNT(*) AS requests,
+                       SUM(COALESCE({cost_col}, 0)) AS cost_usd,
+                       AVG({lat_col}) AS avg_latency_ms
+                FROM generation_usage
+                GROUP BY user_id
+                ORDER BY cost_usd DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            by_project = conn.execute(
+                f"""
+                SELECT {proj_col} AS project_id,
+                       COUNT(*) AS requests,
+                       SUM(COALESCE({cost_col}, 0)) AS cost_usd
+                FROM generation_usage
+                WHERE {proj_col} IS NOT NULL
+                GROUP BY {proj_col}
+                ORDER BY cost_usd DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            slowest = conn.execute(
+                f"""
+                SELECT id, user_id, provider, model, {lat_col} AS latency_ms,
+                       status, created_at
+                FROM generation_usage
+                WHERE {lat_col} IS NOT NULL
+                ORDER BY {lat_col} DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            errors = conn.execute(
+                """
+                SELECT provider, COUNT(*) AS errors
+                FROM generation_usage
+                WHERE status = 'failed'
+                GROUP BY provider
+                ORDER BY errors DESC
+                """
+            ).fetchall()
+        return {
+            "cost_per_user": [dict(r) for r in by_user],
+            "cost_per_project": [dict(r) for r in by_project],
+            "slowest_reviews": [dict(r) for r in slowest],
+            "error_rate_by_provider": [dict(r) for r in errors],
+        }
+
+    def set_mfa_secret(self, user_id: str, secret: str, *, enabled: bool = False) -> None:
+        with self._lock, self._connect() as conn:
+            now = _iso()
+            conn.execute(
+                """
+                INSERT INTO user_mfa (user_id, totp_secret, enabled, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    totp_secret = excluded.totp_secret,
+                    enabled = excluded.enabled,
+                    updated_at = excluded.updated_at
+                """,
+                (user_id, secret, 1 if enabled else 0, now, now),
+            )
+            conn.execute(
+                "UPDATE users SET mfa_enabled = ? WHERE id = ?",
+                (1 if enabled else 0, user_id),
+            )
+            conn.commit()
+
+    def get_mfa_secret(self, user_id: str) -> tuple[str, bool] | None:
+        with self._lock, self._connect() as conn:
+            row = conn.execute(
+                "SELECT totp_secret, enabled FROM user_mfa WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return row["totp_secret"], bool(row["enabled"])
+
+    # ----------------------------------------------------------- ROI / collab
+    def record_roi_event(
+        self,
+        *,
+        org_id: str,
+        event_type: str,
+        project_id: str | None = None,
+        user_id: str | None = None,
+        payload: dict[str, Any] | None = None,
+    ) -> str:
+        from app.roi.metrics import record_event
+
+        with self._lock, self._connect() as conn:
+            eid = record_event(
+                conn,
+                org_id=org_id,
+                event_type=event_type,
+                project_id=project_id,
+                user_id=user_id,
+                payload=payload,
+            )
+            conn.commit()
+            return eid
+
+    def report_agent_runs(
+        self,
+        *,
+        org_id: str,
+        project_id: str,
+        user_id: str | None,
+        runs_before: int,
+        runs_after: int,
+        notes: str | None = None,
+    ) -> str:
+        from app.roi.metrics import report_agent_runs
+
+        with self._lock, self._connect() as conn:
+            eid = report_agent_runs(
+                conn,
+                org_id=org_id,
+                project_id=project_id,
+                user_id=user_id,
+                runs_before=runs_before,
+                runs_after=runs_after,
+                notes=notes,
+            )
+            conn.commit()
+            return eid
+
+    def org_roi_dashboard(self, org_id: str) -> dict[str, Any]:
+        from app.roi.metrics import compute_org_roi, snapshot_dict
+
+        with self._lock, self._connect() as conn:
+            return snapshot_dict(compute_org_roi(conn, org_id))
+
+    def add_finding_comment(
+        self,
+        *,
+        org_id: str,
+        project_id: str,
+        finding_id: str,
+        user_id: str,
+        body: str,
+        mention_user_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        from app.collab.store import add_finding_comment
+
+        with self._lock, self._connect() as conn:
+            row = add_finding_comment(
+                conn,
+                org_id=org_id,
+                project_id=project_id,
+                finding_id=finding_id,
+                user_id=user_id,
+                body=body,
+                mention_user_ids=mention_user_ids,
+            )
+            conn.commit()
+            return row
+
+    def list_finding_comments(
+        self, *, project_id: str, finding_id: str
+    ) -> list[dict[str, Any]]:
+        from app.collab.store import list_finding_comments
+
+        with self._lock, self._connect() as conn:
+            return list_finding_comments(
+                conn, project_id=project_id, finding_id=finding_id
+            )
+
+    def upsert_org_rejected_approach(
+        self,
+        *,
+        org_id: str,
+        approach: str,
+        reason: str,
+        source_project_id: str | None = None,
+        created_by: str | None = None,
+    ) -> dict[str, Any]:
+        from app.collab.store import upsert_org_rejected_approach
+
+        with self._lock, self._connect() as conn:
+            row = upsert_org_rejected_approach(
+                conn,
+                org_id=org_id,
+                approach=approach,
+                reason=reason,
+                source_project_id=source_project_id,
+                created_by=created_by,
+            )
+            conn.commit()
+            return row
+
+    def list_org_rejected_approaches(self, org_id: str) -> list[dict[str, Any]]:
+        from app.collab.store import list_org_rejected_approaches
+
+        with self._lock, self._connect() as conn:
+            return list_org_rejected_approaches(conn, org_id=org_id)
+
+    def list_notifications(self, user_id: str, *, limit: int = 50) -> list[dict[str, Any]]:
+        from app.collab.store import list_notifications
+
+        with self._lock, self._connect() as conn:
+            return list_notifications(conn, user_id=user_id, limit=limit)
+
+    def list_org_member_ids(self, org_id: str) -> list[str]:
+        with self._lock, self._connect() as conn:
+            rows = conn.execute(
+                "SELECT user_id FROM org_memberships WHERE org_id = ?",
+                (org_id,),
+            ).fetchall()
+        return [r["user_id"] for r in rows]
+
+    def notify_org_blocking_finding(
+        self,
+        *,
+        org_id: str,
+        project_id: str,
+        finding_id: str,
+        title: str,
+    ) -> int:
+        from app.collab.store import notify_blocking_finding
+
+        members = self.list_org_member_ids(org_id)
+        with self._lock, self._connect() as conn:
+            n = notify_blocking_finding(
+                conn,
+                org_id=org_id,
+                project_id=project_id,
+                finding_id=finding_id,
+                title=title,
+                member_user_ids=members,
+            )
+            conn.commit()
+            return n
+
+    def save_org_playbook(
+        self,
+        *,
+        org_id: str,
+        title: str,
+        content_text: str,
+        vertical: str | None,
+        created_by: str | None,
+        skill_id: str | None,
+    ) -> dict[str, Any]:
+        from uuid import uuid4
+
+        pid = f"pb_{uuid4().hex[:16]}"
+        now = _iso()
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO org_playbooks (
+                    id, org_id, title, vertical, content_text, skill_id,
+                    created_by, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    pid,
+                    org_id,
+                    title.strip(),
+                    vertical,
+                    content_text,
+                    skill_id,
+                    created_by,
+                    now,
+                    now,
+                ),
+            )
+            conn.commit()
+        return {
+            "id": pid,
+            "org_id": org_id,
+            "title": title.strip(),
+            "vertical": vertical,
+            "skill_id": skill_id,
+        }

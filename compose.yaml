@@ -25,13 +25,15 @@ services:
       # CORS: set to your public HTTPS origin(s) in the env file
     volumes:
       - vibeprompt_data:/data
+    # Bind API to loopback on the host so public traffic must hit the TLS reverse proxy.
+    # Inside the container Uvicorn still listens on 0.0.0.0:8000 for compose networking.
     ports:
-      - "${API_PUBLISH_PORT:-8000}:8000"
+      - "127.0.0.1:${API_PUBLISH_PORT:-8000}:8000"
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "curl -fsS -H \"X-API-Secret: $$API_SECRET\" http://127.0.0.1:8000/api/health || exit 1",
+          "curl -fsS http://127.0.0.1:8000/api/health || exit 1",
         ]
       interval: 30s
       timeout: 5s

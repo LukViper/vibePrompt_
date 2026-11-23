@@ -291,6 +291,22 @@ TARGET_BOOKS: list[dict[str, Any]] = [
     },
 ]
 
+# Single-node beta: acquired books/ titles are the active skill baseline.
+# These eight commercial discovery targets stay planned until rights-confirmed upload.
+for _book in TARGET_BOOKS:
+    _book.setdefault("release_status", "planned_pending_rights")
+    _book.setdefault(
+        "release_note",
+        "Not in the active beta Books-to-Skill baseline (6 verified acquired titles).",
+    )
+
+# Active beta baseline mirrors books/RESOURCE_MANIFEST.json acquired count.
+BETA_ACTIVE_BOOK_COUNT = 6
+BETA_RELEASE_CLAIM = (
+    "Single-node beta ships with 6 verified acquired titles; "
+    "catalog discovery titles are planned / pending-rights — do not claim 8/8 live."
+)
+
 
 def get_catalog_entry(slug: str) -> dict[str, Any] | None:
     for book in TARGET_BOOKS:

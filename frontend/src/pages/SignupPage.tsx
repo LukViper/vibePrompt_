@@ -1,6 +1,7 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useCallback, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { GoogleSignInButton } from "../components/auth/GoogleSignInButton";
 import { safeRedirectPath } from "../lib/supabase";
 
 export function SignupPage() {
@@ -17,6 +18,13 @@ export function SignupPage() {
   const [verifyNotice, setVerifyNotice] = useState(false);
 
   const err = localError || auth.error;
+  const googleClientId = useMemo(() => {
+    const fromEnv = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
+    const fromApi = (auth.config?.google_client_id || "").trim();
+    return fromEnv || fromApi;
+  }, [auth.config?.google_client_id]);
+  const showGoogleGis = Boolean(googleClientId);
+  const showSupabaseGoogle = auth.usingSupabase && auth.config?.google_oauth_hint !== false;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -67,6 +75,23 @@ export function SignupPage() {
     }
   }
 
+  const onGoogleCredential = useCallback(
+    async (idToken: string) => {
+      setLocalError(null);
+      auth.clearError();
+      setBusy(true);
+      try {
+        await auth.signInWithGoogleIdToken(idToken);
+        navigate(next, { replace: true });
+      } catch (ex) {
+        setLocalError(ex instanceof Error ? ex.message : "Google Sign-In failed");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [auth, navigate, next]
+  );
+
   if (verifyNotice) {
     return (
       <div className="auth-shell">
@@ -92,28 +117,46 @@ export function SignupPage() {
         <h1>Create account</h1>
         <p className="muted">Save projects and resume discovery anytime.</p>
 
-        {auth.usingSupabase && (
+        {(showGoogleGis || showSupabaseGoogle || auth.usingSupabase) && (
           <div className="oauth-stack">
-            <button
-              type="button"
-              className="btn btn-block oauth-btn"
-              disabled={busy}
-              onClick={() => void oauth("google")}
-            >
-              Continue with Google
-            </button>
-            <button
-              type="button"
-              className="btn btn-block oauth-btn ghost"
-              disabled={busy}
-              onClick={() => void oauth("github")}
-            >
-              Continue with GitHub
-            </button>
+            {showGoogleGis ? (
+              <GoogleSignInButton
+                clientId={googleClientId}
+                disabled={busy}
+                onCredential={onGoogleCredential}
+                onError={(msg) => setLocalError(msg)}
+              />
+            ) : showSupabaseGoogle ? (
+              <button
+                type="button"
+                className="btn btn-block oauth-btn"
+                disabled={busy}
+                onClick={() => void oauth("google")}
+              >
+                Continue with Google
+              </button>
+            ) : null}
+            {auth.usingSupabase && (
+              <button
+                type="button"
+                className="btn btn-block oauth-btn ghost"
+                disabled={busy}
+                onClick={() => void oauth("github")}
+              >
+                Continue with GitHub
+              </button>
+            )}
             <div className="auth-divider">
               <span>or email</span>
             </div>
           </div>
+        )}
+
+        {!showGoogleGis && !auth.usingSupabase && (
+          <p className="muted google-setup-hint">
+            Prefer Google? Set <code>GOOGLE_OAUTH_CLIENT_ID</code> /{" "}
+            <code>VITE_GOOGLE_CLIENT_ID</code>, or use email below.
+          </p>
         )}
 
         <form onSubmit={(e) => void onSubmit(e)} className="auth-form">

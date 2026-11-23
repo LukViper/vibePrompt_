@@ -1,15 +1,41 @@
 import { UserProfile } from "./auth/UserProfile";
-import type { FreeTierStatus, ProjectSummary, UserPublic } from "../types";
+import type {
+  BehaviouralMode,
+  FreeTierStatus,
+  ProjectSummary,
+  UserPublic,
+} from "../types";
+
+const STAGES: { id: BehaviouralMode; label: string }[] = [
+  { id: "explore", label: "EXPLORE" },
+  { id: "plan", label: "PLAN" },
+  { id: "build", label: "BUILD" },
+  { id: "review", label: "REVIEW" },
+  { id: "debug", label: "DEBUG" },
+];
+
+const STAGE_ORDER = STAGES.map((s) => s.id);
+
+function normalizeStage(mode?: BehaviouralMode | null): BehaviouralMode {
+  if (!mode) return "explore";
+  if (mode === "grill_review") return "review";
+  if (mode === "brainstorming" || mode === "conversational") return "explore";
+  if (STAGE_ORDER.includes(mode)) return mode;
+  return "explore";
+}
 
 type Props = {
   projects: ProjectSummary[];
   activeId: string | null;
+  activeMode?: BehaviouralMode | null;
   user: UserPublic | null;
   freeTier: FreeTierStatus | null;
   fundingSource: string | null;
   projectQuery: string;
   needsAuth: boolean;
   needsByok: boolean;
+  skillsActive: number;
+  skillsTotal: number;
   onQueryChange: (q: string) => void;
   onSelectProject: (id: string) => void;
   onNewProject: () => void;
@@ -25,12 +51,15 @@ type Props = {
 export function Sidebar({
   projects,
   activeId,
+  activeMode,
   user,
   freeTier,
   fundingSource,
   projectQuery,
   needsAuth,
   needsByok,
+  skillsActive,
+  skillsTotal,
   onQueryChange,
   onSelectProject,
   onNewProject,
@@ -55,6 +84,8 @@ export function Sidebar({
   const allocated = freeTier?.allocated ?? 0;
   const remaining = freeTier?.remaining ?? 0;
   const pct = allocated > 0 ? Math.round((remaining / allocated) * 100) : 0;
+  const current = normalizeStage(activeMode);
+  const currentIdx = STAGE_ORDER.indexOf(current);
 
   if (collapsed) {
     return (
@@ -93,16 +124,14 @@ export function Sidebar({
     <aside className="sidebar">
       <div className="sidebar-top">
         <div className="brand-row">
-          <div>
-            <p className="brand">VibePrompt</p>
-            <p className="brand-sub">Shape ideas · craft prompts</p>
-          </div>
+          <p className="brand">VibePrompt</p>
           {onToggleCollapse && (
             <button
               type="button"
               className="btn btn-ghost btn-sm"
               onClick={onToggleCollapse}
               title="Collapse sidebar"
+              aria-label="Collapse sidebar"
             >
               «
             </button>
@@ -117,15 +146,6 @@ export function Sidebar({
         >
           New project
         </button>
-        {onOpenKnowledge && user && (
-          <button
-            className="btn btn-block btn-ghost"
-            type="button"
-            onClick={onOpenKnowledge}
-          >
-            Knowledge Library
-          </button>
-        )}
 
         <label className="search-field">
           <span className="sr-only">Search projects</span>
@@ -139,7 +159,7 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-scroll">
-        <p className="section-label">Recent</p>
+        <p className="section-label">Projects</p>
         <ul className="project-list">
           {filtered.length === 0 && (
             <li className="muted empty-list">No projects yet</li>
@@ -159,36 +179,104 @@ export function Sidebar({
             </li>
           ))}
         </ul>
+
+        {activeId && (
+          <>
+            <p className="section-label" style={{ marginTop: "1rem" }}>
+              Stage
+            </p>
+            <ul className="stage-stepper" aria-label="Project stage">
+              {STAGES.map((s, i) => {
+                const done = i < currentIdx;
+                const active = i === currentIdx;
+                return (
+                  <li
+                    key={s.id}
+                    className={`stage-step ${done ? "done" : ""} ${active ? "active" : ""}`}
+                  >
+                    <span className="stage-check" aria-hidden>
+                      {done ? "✓" : active ? "›" : ""}
+                    </span>
+                    {s.label}
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+
+        {(user || skillsTotal > 0) && (
+          <>
+            <p className="section-label" style={{ marginTop: "1rem" }}>
+              Knowledge Library
+            </p>
+            <button
+              type="button"
+              className="skills-status"
+              onClick={onOpenKnowledge}
+              disabled={!user || !onOpenKnowledge}
+              title={user ? "Open Knowledge Library" : "Sign in to manage skills"}
+              style={{ width: "100%", cursor: user ? "pointer" : "default" }}
+            >
+              <span className="count">
+                {skillsActive}/{skillsTotal || 6}
+              </span>
+              <span className="label">Active Skills</span>
+            </button>
+          </>
+        )}
       </div>
 
       <div className="sidebar-footer">
-        {freeTierEnabled && (
+        {freeTierEnabled ? (
           <div className={`quota-card ${needsByok ? "exhausted" : ""}`}>
             <div className="quota-head">
-              <span>AI generations</span>
+              <span>Generations</span>
               <strong>
-                {remaining} / {allocated}
+                {remaining}/{allocated}
               </strong>
             </div>
             <div className="progress-track" aria-hidden>
-              <div className="progress-fill" style={{ width: `${pct}%` }} />
+              <div
+                className={`progress-fill ${needsByok ? "blocking" : ""}`}
+                style={{ width: `${pct}%` }}
+              />
             </div>
-            {needsByok ? (
-              <p className="quota-msg">Free tier exhausted — connect BYOK.</p>
-            ) : (
-              <p className="quota-msg">
-                {freeTier?.funding === "BYOK"
+            <p className="quota-msg">
+              {needsByok
+                ? "Free tier exhausted — connect BYOK."
+                : freeTier?.funding === "BYOK"
                   ? `${freeTier.byok_provider ?? "BYOK"} · your key`
                   : `${freeTier?.provider ?? "Qwen"} · platform`}
-                {fundingSource ? ` · last: ${fundingSource}` : ""}
-              </p>
-            )}
+              {fundingSource ? ` · last: ${fundingSource}` : ""}
+            </p>
             <button
               className="btn btn-sm btn-ghost btn-block"
               type="button"
               onClick={onOpenByok}
             >
               {needsByok ? "Configure BYOK" : "API settings"}
+            </button>
+          </div>
+        ) : (
+          <div className="quota-card">
+            <div className="quota-head">
+              <span>Inference</span>
+              <strong>
+                {freeTier?.byok_configured ? "BYOK" : "Keys"}
+              </strong>
+            </div>
+            <p className="quota-msg">
+              {freeTier?.byok_configured
+                ? `${freeTier.byok_provider ?? "BYOK"} · your key`
+                : "Platform providers off — add your own API key."}
+            </p>
+            <button
+              className="btn btn-sm btn-block"
+              type="button"
+              onClick={onOpenByok}
+            >
+              Configure BYOK
             </button>
           </div>
         )}

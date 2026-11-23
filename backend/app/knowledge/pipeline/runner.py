@@ -33,7 +33,16 @@ def process_book(store: KnowledgeStore, book_id: str, *, actor: str | None = Non
     if not decision.allowed:
         raise PipelineError(decision.reason, "licensing")
 
-    if not book.source_path or not Path(book.source_path).is_file():
+    if not book.source_path:
+        raise PipelineError("No source file on disk", "file")
+
+    from app.knowledge.files import FileValidationError, ensure_under_root
+
+    try:
+        path = ensure_under_root(book.source_path, store.upload_root)
+    except FileValidationError as exc:
+        raise PipelineError(exc.message, "file") from exc
+    if not path.is_file():
         raise PipelineError("No source file on disk", "file")
 
     job = ProcessingJob(book_id=book_id, status="running", stage="validating", started_at=utcnow())
@@ -60,8 +69,7 @@ def process_book(store: KnowledgeStore, book_id: str, *, actor: str | None = Non
         store.update_job(job)
 
     try:
-        _set_stage("validating", Path(book.source_path).name)
-        path = Path(book.source_path)
+        _set_stage("validating", path.name)
         if path.stat().st_size <= 0:
             raise PipelineError("Empty file", "validating")
         report["stages"].append({"stage": "validating", "ok": True})

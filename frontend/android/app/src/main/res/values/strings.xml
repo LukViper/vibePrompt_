@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">VibePrompt</string>
+    <string name="title_activity_main">VibePrompt</string>
+    <string name="package_name">com.vibeprompt.app</string>
+    <string name="custom_url_scheme">com.vibeprompt.app</string>
+</resources>

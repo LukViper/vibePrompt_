@@ -28,6 +28,22 @@ def safe_filename(name: str) -> str:
     return base[:180] or "upload.bin"
 
 
+def ensure_under_root(path: Path | str, root: Path | str) -> Path:
+    """
+    Resolve `path` and require it to stay inside `root`.
+    Rejects `../` traversal and absolute paths outside the upload tree.
+    """
+    root_resolved = Path(root).resolve()
+    candidate = Path(path)
+    # Disallow absolute escapes before resolve joins oddly on some platforms
+    resolved = candidate.resolve()
+    try:
+        resolved.relative_to(root_resolved)
+    except ValueError as exc:
+        raise FileValidationError("Path escapes knowledge upload root") from exc
+    return resolved
+
+
 def validate_extension(filename: str) -> str:
     ext = Path(filename).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
@@ -55,7 +71,8 @@ def store_upload(
     safe = safe_filename(filename)
     if not safe.lower().endswith(ext):
         safe = f"{safe}{ext}"
-    path = dest_dir / safe
+    path = ensure_under_root(dest_dir / safe, upload_root)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
     return {
         "path": str(path),

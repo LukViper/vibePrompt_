@@ -1,37 +1,52 @@
 # VibePrompt Deployment and Recovery
 
-Staging/production packaging for the API (+ optional web UI). Grill, Books-to-Skill, orchestration, and prompt-generation code paths are unchanged.
+Staging/production packaging for the API (+ optional web UI) as an **evidence-backed single-node beta**. **Cloud split:** Render hosts the FastAPI API; Vercel hosts the SPA. Local compose remains available for offline/staging. Grill, Books-to-Skill (6 active acquired titles), orchestration, and prompt-generation code paths are unchanged.
 
-## Architecture (compose)
+## Cloud architecture (Render + Vercel)
 
-| Service | Role |
-|---|---|
-| `api` | FastAPI / Uvicorn (non-root uid 10001), SQLite + skills + uploads on volume |
-| `web` | nginx SPA; proxies `/api/` to `api:8000` |
-| `backup` | Optional profile — one-shot SQLite online backup into `/data/backups` |
+| Surface | Host | Config |
+|---|---|---|
+| API (`/api/*`) | **Render** web service | Root `render.yaml` — Python runtime, `rootDir: backend`, managed Postgres |
+| SPA | **Vercel** | Root `vercel.json` — builds `frontend/`, publishes `frontend/dist` |
 
-## Vercel (frontend SPA)
+Current API service: [vibeprompt-api.onrender.com](https://vibeprompt-api.onrender.com) → dashboard `srv-dc264c56e07s73b9ksog`.
 
-The React/Vite UI is Vercel-ready via root `vercel.json` (builds `frontend/`, serves `frontend/dist`, SPA fallback).
+### Render (API)
 
-The FastAPI + SQLite API is **not** hosted on Vercel (persistent volume, long LLM calls). Run the API with compose/Docker (or equivalent) and point the SPA at it.
+1. Commit and push `render.yaml`, then open the Blueprint deeplink:  
+   `https://dashboard.render.com/blueprint/new?repo=https://github.com/LukViper/vibePrompt_`
+2. Review services (`vibeprompt-api` + `vibeprompt-db`). Fill Dashboard-only secrets marked `sync: false` (`CORS_ORIGINS`, provider keys, Supabase, etc.). `JWT_SECRET` / `CREDENTIALS_ENCRYPTION_KEY` / `API_SECRET` use `generateValue`.
+3. Set `CORS_ORIGINS` to your Vercel HTTPS origin(s), e.g. `https://your-app.vercel.app` (comma-separated; no `*` in production).
+4. Health check: `GET /api/health` (public). After deploy, confirm `https://<service>.onrender.com/api/health`.
+5. Free plan: `/tmp` for uploads/skills (ephemeral). Attach a paid disk later if Knowledge Library persistence is required on Render.
 
-### Connect the GitHub repo
+Optional: `render blueprints validate render.yaml` after installing the [Render CLI](https://render.com/docs/cli).
+
+### Vercel (frontend SPA)
 
 1. Import `LukViper/vibePrompt_` in Vercel (**Root Directory** = repository root `/`, not `frontend`). Root `vercel.json` runs `cd frontend && npm ci` / `npm run build` and publishes `frontend/dist`. If Root Directory is set to `frontend`, drop the custom install/build commands or `npm ci` will look for a missing nested lockfile and fail with EUSAGE.
 2. Set Environment Variables (Production / Preview as needed):
 
 | Variable | Purpose |
 |---|---|
-| `VITE_API_BASE_URL` | Absolute API base including `/api`, e.g. `https://api.example.com/api` |
-| `VITE_API_SECRET` | Same value as backend `API_SECRET` (sent as `X-API-Secret`) |
+| `VITE_API_BASE_URL` | Absolute API base including `/api`, e.g. `https://vibeprompt-api.onrender.com/api` |
 | `VITE_SUPABASE_URL` | Supabase project URL (if using Supabase auth) |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon / publishable key |
 
-3. On the API host, set `CORS_ORIGINS` to the exact Vercel HTTPS origin(s), e.g. `https://your-app.vercel.app`.
-4. Redeploy after env changes (Vite inlines `VITE_*` at build time).
+Do **not** set a static API secret in the SPA. The browser mints a short-lived guest JWT via `POST /api/auth/guest` (or uses a logged-in user Bearer token). Keep `API_SECRET` server-side for ops/curl only.
+
+3. On Render, set `CORS_ORIGINS` to the exact Vercel HTTPS origin(s). For the Capacitor Android APK (see README), also allow `https://localhost`.
+4. Redeploy Vercel after env changes (Vite inlines `VITE_*` at build time).
 
 Local frontend env template: `frontend/.env.example`.
+
+## Architecture (local compose)
+
+| Service | Role |
+|---|---|
+| `api` | FastAPI / Uvicorn (non-root uid 10001), SQLite + skills + uploads on volume |
+| `web` | nginx SPA; proxies `/api/` to `api:8000` |
+| `backup` | Optional profile — one-shot SQLite online backup into `/data/backups` |
 
 Persistent volume: compose service mount `vibeprompt_data` → `/data` (project-scoped volume name by default)  
 - Database: `/data/vibeprompt.db`  
@@ -85,7 +100,7 @@ curl -fsS -H "X-API-Secret: $API_SECRET" http://127.0.0.1:8000/api/health
 | `APP_ENV` | Must be `production` |
 | `JWT_SECRET` | Strong, unique; not `dev-only-*` |
 | `CREDENTIALS_ENCRYPTION_KEY` | Strong, unique; not `dev-only-*` |
-| `API_SECRET` | Non-empty; clients send `X-API-Secret` |
+| `API_SECRET` | Non-empty server-side; SPA uses guest/user JWT (ops may still send `X-API-Secret`) |
 | `DATABASE_PATH` | `/data/vibeprompt.db` on the persistent volume |
 | `CORS_ORIGINS` | Exact HTTPS frontend origin(s) |
 | HTTPS | Terminate TLS at reverse proxy; forward `X-Forwarded-Proto` |
@@ -102,7 +117,7 @@ app.example.com {
 }
 ```
 
-Ensure the proxy preserves `Authorization` and `X-API-Secret` headers to the upstream.
+Ensure the proxy preserves `Authorization` (and optional ops `X-API-Secret`) headers to the upstream.
 
 ## SQLite backup (consistent)
 
@@ -201,3 +216,26 @@ See `docs/DEPLOYMENT_VERIFICATION_RESULTS.md` and:
 ```bash
 python backend/scripts/deployment_verification.py
 ```
+
+## PostgreSQL (production) — backup & RTO/RPO
+
+**SQLite backup scripts above are local-dev / legacy single-node only.**
+
+For production on Neon (or RDS):
+
+| Item | Target |
+|---|---|
+| RPO | **24-hour** until Postgres HA is proven (Neon PITR typically better; treat 24h as the contractual floor) |
+| RTO | Single API node recovery: restore DB + redeploy API within a maintenance window |
+| Backups | Enable Neon **point-in-time recovery** (PITR); keep provider automated daily backups on |
+| Drill | **Quarterly restore test** (even if manual): restore a branch/copy, run `GET /api/v1/health/ready`, login smoke |
+
+```bash
+# Apply schema once per new database
+psql "$DATABASE_URL" -f backend/app/persistence/postgres_schema.sql
+
+# Readiness (DB + provider hints)
+curl -fsS "$API/api/v1/health/ready"
+```
+
+Document the last successful restore drill date in your runbook when you perform it.

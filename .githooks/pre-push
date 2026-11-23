@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Enable with: git config core.hooksPath .githooks
+ROOT="$(git rev-parse --show-toplevel)"
+exec "$ROOT/scripts/pre-push-secret-scan.sh" "$@"

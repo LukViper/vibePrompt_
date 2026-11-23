@@ -64,6 +64,7 @@ def candidate_to_finding(
         potential_impact=candidate.potential_impact,
         recommended_next_step=candidate.recommended_next_step,
         invalidation_criteria=candidate.invalidation_criteria,
+        kind=(getattr(candidate, "kind", None) or "").strip(),
         provenance=provenance,
         critic_outcome=critic_outcome,
         critic_notes=critic_notes,
@@ -196,11 +197,34 @@ def apply_critic_review(
     return kept, outcome, "; ".join(n for n in notes_parts if n)
 
 
+_EVIDENCE_NOTE_RE = re.compile(
+    r"(evidence|updated state|supersede|migrat|manifest|artifact|counter.?evidence|fixed|resolved by)",
+    re.I,
+)
+
+
 def update_finding_status(
     finding: Finding,
     status: FindingStatus,
     note: str | None = None,
 ) -> Finding:
+    """Apply status change. Blocking contradictions require counterevidence notes."""
+    if (
+        finding.is_blocking_contradiction
+        and status
+        in (
+            FindingStatus.RESOLVED,
+            FindingStatus.REJECTED,
+            FindingStatus.ACCEPTED_RISK,
+        )
+    ):
+        note_text = (note or "").strip()
+        if not note_text or not _EVIDENCE_NOTE_RE.search(note_text):
+            raise ValueError(
+                "Blocking contradictions cannot be cleared by insistence alone. "
+                "Provide a resolution note with state/artifact counterevidence "
+                "(e.g. migration decision, superseded rejection, updated manifest)."
+            )
     finding.status = status
     finding.updated_at = utcnow()
     finding.resolution_note = note
