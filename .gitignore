@@ -30,6 +30,16 @@ frontend/.vite/
 frontend/tsconfig.tsbuildinfo
 *.local
 
+# Android / Capacitor local builds (keep project sources under frontend/android)
+frontend/android/app/build/
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+
 # Backend local env (examples are allowed)
 backend/.env
 frontend/.env

@@ -1,38 +1,52 @@
 # VibePrompt Deployment and Recovery
 
-Staging/production packaging for the API (+ optional web UI) as an **evidence-backed single-node beta** (SQLite WAL / single-writer, Vercel SPA + external FastAPI). Grill, Books-to-Skill (6 active acquired titles), orchestration, and prompt-generation code paths are unchanged.
+Staging/production packaging for the API (+ optional web UI) as an **evidence-backed single-node beta**. **Cloud split:** Render hosts the FastAPI API; Vercel hosts the SPA. Local compose remains available for offline/staging. Grill, Books-to-Skill (6 active acquired titles), orchestration, and prompt-generation code paths are unchanged.
 
-## Architecture (compose)
+## Cloud architecture (Render + Vercel)
 
-| Service | Role |
-|---|---|
-| `api` | FastAPI / Uvicorn (non-root uid 10001), SQLite + skills + uploads on volume |
-| `web` | nginx SPA; proxies `/api/` to `api:8000` |
-| `backup` | Optional profile — one-shot SQLite online backup into `/data/backups` |
+| Surface | Host | Config |
+|---|---|---|
+| API (`/api/*`) | **Render** web service | Root `render.yaml` — Python runtime, `rootDir: backend`, managed Postgres |
+| SPA | **Vercel** | Root `vercel.json` — builds `frontend/`, publishes `frontend/dist` |
 
-## Vercel (frontend SPA)
+Existing Render service (if already linked): [vibeprompt.onrender.com](https://vibeprompt.onrender.com) → dashboard `srv-db3kimrncjis73apqnhg`.
 
-The React/Vite UI is Vercel-ready via root `vercel.json` (builds `frontend/`, serves `frontend/dist`, SPA fallback).
+### Render (API)
 
-The FastAPI + SQLite API is **not** hosted on Vercel (persistent volume, long LLM calls). Run the API with compose/Docker (or equivalent) and point the SPA at it.
+1. Commit and push `render.yaml`, then open the Blueprint deeplink:  
+   `https://dashboard.render.com/blueprint/new?repo=https://github.com/LukViper/vibePrompt_`
+2. Review services (`vibeprompt-api` + `vibeprompt-db`). Fill Dashboard-only secrets marked `sync: false` (`CORS_ORIGINS`, provider keys, Supabase, etc.). `JWT_SECRET` / `CREDENTIALS_ENCRYPTION_KEY` / `API_SECRET` use `generateValue`.
+3. Set `CORS_ORIGINS` to your Vercel HTTPS origin(s), e.g. `https://your-app.vercel.app` (comma-separated; no `*` in production).
+4. Health check: `GET /api/health` (public). After deploy, confirm `https://<service>.onrender.com/api/health`.
+5. Free plan: `/tmp` for uploads/skills (ephemeral). Attach a paid disk later if Knowledge Library persistence is required on Render.
 
-### Connect the GitHub repo
+Optional: `render blueprints validate render.yaml` after installing the [Render CLI](https://render.com/docs/cli).
+
+### Vercel (frontend SPA)
 
 1. Import `LukViper/vibePrompt_` in Vercel (**Root Directory** = repository root `/`, not `frontend`). Root `vercel.json` runs `cd frontend && npm ci` / `npm run build` and publishes `frontend/dist`. If Root Directory is set to `frontend`, drop the custom install/build commands or `npm ci` will look for a missing nested lockfile and fail with EUSAGE.
 2. Set Environment Variables (Production / Preview as needed):
 
 | Variable | Purpose |
 |---|---|
-| `VITE_API_BASE_URL` | Absolute API base including `/api`, e.g. `https://api.example.com/api` |
+| `VITE_API_BASE_URL` | Absolute API base including `/api`, e.g. `https://vibeprompt.onrender.com/api` |
 | `VITE_SUPABASE_URL` | Supabase project URL (if using Supabase auth) |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon / publishable key |
 
 Do **not** set a static API secret in the SPA. The browser mints a short-lived guest JWT via `POST /api/auth/guest` (or uses a logged-in user Bearer token). Keep `API_SECRET` server-side for ops/curl only.
 
-3. On the API host, set `CORS_ORIGINS` to the exact Vercel HTTPS origin(s), e.g. `https://your-app.vercel.app`. For the Capacitor Android APK (see README), also allow `https://localhost`.
-4. Redeploy after env changes (Vite inlines `VITE_*` at build time).
+3. On Render, set `CORS_ORIGINS` to the exact Vercel HTTPS origin(s). For the Capacitor Android APK (see README), also allow `https://localhost`.
+4. Redeploy Vercel after env changes (Vite inlines `VITE_*` at build time).
 
 Local frontend env template: `frontend/.env.example`.
+
+## Architecture (local compose)
+
+| Service | Role |
+|---|---|
+| `api` | FastAPI / Uvicorn (non-root uid 10001), SQLite + skills + uploads on volume |
+| `web` | nginx SPA; proxies `/api/` to `api:8000` |
+| `backup` | Optional profile — one-shot SQLite online backup into `/data/backups` |
 
 Persistent volume: compose service mount `vibeprompt_data` → `/data` (project-scoped volume name by default)  
 - Database: `/data/vibeprompt.db`  

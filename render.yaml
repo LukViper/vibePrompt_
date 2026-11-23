@@ -1,0 +1,77 @@
+# VibePrompt — Render Blueprint (API backend only)
+# Frontend SPA deploys on Vercel (see vercel.json).
+#
+# Apply: https://dashboard.render.com/blueprint/new?repo=https://github.com/LukViper/vibePrompt_
+# Or: push this file, then create/plan Blueprint via Render MCP / CLI.
+
+databases:
+  - name: vibeprompt-db
+    databaseName: vibeprompt
+    user: vibeprompt
+    plan: free
+    region: oregon
+    postgresMajorVersion: "16"
+    ipAllowList: []  # private network only; API connects via fromDatabase
+
+services:
+  - type: web
+    name: vibeprompt-api
+    runtime: python
+    plan: free
+    region: oregon
+    # Deploy from default branch (master). Change if you Blueprint from another branch.
+    branch: master
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_BACKEND
+        value: postgres
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vibeprompt-db
+          property: connectionString
+      - key: DATABASE_PATH
+        value: /tmp/vibeprompt.db
+      - key: KNOWLEDGE_UPLOAD_DIR
+        value: /tmp/knowledge/uploads
+      - key: SKILLS_DIR
+        value: /tmp/skills
+      - key: CRITIC_ENABLED
+        value: "true"
+      - key: REVIEW_INTENSITY
+        value: normal
+      - key: FREE_TIER_ENABLED
+        value: "false"
+      - key: AUTH_MODE
+        value: auto
+      # Comma-separated Vercel HTTPS origin(s). Update after first SPA deploy.
+      - key: CORS_ORIGINS
+        sync: false
+      # Secrets — set in Render Dashboard (never commit plaintext)
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CREDENTIALS_ENCRYPTION_KEY
+        generateValue: true
+      - key: API_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: QWEN_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false

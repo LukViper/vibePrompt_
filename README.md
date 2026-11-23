@@ -86,6 +86,32 @@ cd frontend
 npm test
 ```
 
+### Android APK (Capacitor)
+
+The React SPA is wrapped with Capacitor (`frontend/android/`). The APK talks to your **hosted API** over HTTPS — there is no Vite `/api` proxy on device.
+
+**Prerequisites:** Android Studio (or cmdline-tools + SDK 35), JDK 17+ recommended for Gradle (OpenJDK 21 also works on many setups).
+
+```bash
+cd frontend
+# Point at your live API (required for the APK)
+echo 'VITE_API_BASE_URL=https://your-api.example.com/api' > .env
+
+npm run android:sync          # build SPA → copy into android/
+npm run android:open          # opens Android Studio
+# In Android Studio: Build → Build Bundle(s) / APK(s) → Build APK(s)
+# Debug APK: android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+CLI-only debug APK (with SDK installed and `ANDROID_HOME` set):
+
+```bash
+cd frontend/android
+./gradlew assembleDebug
+```
+
+On the API host, add Capacitor’s WebView origin to `CORS_ORIGINS` (typically `https://localhost` with `androidScheme: "https"`). Do not ship a debug APK pointed at `api.example.com` placeholders.
+
 ### CLI (local readiness gate)
 
 ```bash

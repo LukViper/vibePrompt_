@@ -124,15 +124,22 @@ export function parseError(res: Response, detail: string): ApiError {
   } catch {
     /* keep raw text */
   }
-  // Empty-body 405 is typical when POST /api/* hits a static SPA host (e.g. Vercel)
-  // instead of the FastAPI backend — usually missing VITE_API_BASE_URL.
+  // POST /api/* on a static SPA host (Vercel): 405 before rewrite exclusion, or
+  // 404 NOT_FOUND (bom1::…) after — both mean VITE_API_BASE_URL is missing/wrong.
+  const vercelStaticMiss =
+    /NOT_FOUND/i.test(detail) ||
+    /The page could not be found/i.test(detail) ||
+    /\bbom\d+::/i.test(detail);
   if (
-    res.status === 405 &&
-    (!detail || !detail.trim() || message === `Request failed (${res.status})`)
+    (res.status === 405 || res.status === 404) &&
+    (vercelStaticMiss ||
+      !detail ||
+      !detail.trim() ||
+      message === `Request failed (${res.status})`)
   ) {
     message =
-      "API not reachable (405). Point VITE_API_BASE_URL at your FastAPI host " +
-      "(include /api), or use the Vite/nginx proxy locally.";
+      `API not reachable (${res.status}). Set VITE_API_BASE_URL in Vercel to your ` +
+      "FastAPI host (include /api), redeploy, and allow this origin in CORS_ORIGINS.";
     code = code || "api_unreachable";
   }
   const err = new Error(message) as ApiError;

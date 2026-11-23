@@ -37,6 +37,16 @@ describe("parseError BYOK / quota contract", () => {
     expect(err.code).toBe("api_unreachable");
     expect(err.message).toMatch(/VITE_API_BASE_URL/);
   });
+
+  it("explains Vercel NOT_FOUND 404 as unreachable API", () => {
+    const err = parseError(
+      { status: 404 } as Response,
+      "The page could not be found\nNOT_FOUND\nbom1::abc-123"
+    );
+    expect(err.status).toBe(404);
+    expect(err.code).toBe("api_unreachable");
+    expect(err.message).toMatch(/VITE_API_BASE_URL/);
+  });
 });
 
 describe("ensureGuestToken", () => {
