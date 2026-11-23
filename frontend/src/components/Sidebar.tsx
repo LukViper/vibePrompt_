@@ -269,14 +269,14 @@ export function Sidebar({
             <p className="quota-msg">
               {freeTier?.byok_configured
                 ? `${freeTier.byok_provider ?? "BYOK"} · your key`
-                : "Platform providers off — add your own API key."}
+                : "Server providers on · BYOK optional if you prefer your own key."}
             </p>
             <button
-              className="btn btn-sm btn-block"
+              className="btn btn-sm btn-ghost btn-block"
               type="button"
               onClick={onOpenByok}
             >
-              Configure BYOK
+              {freeTier?.byok_configured ? "API settings" : "Optional BYOK"}
             </button>
           </div>
         )}
