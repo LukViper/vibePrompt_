@@ -286,7 +286,7 @@ class UserStore:
         generation_id = new_id("gen_")
         now = _iso()
         with self._lock, self._connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+            conn.begin_write()
             try:
                 if idempotency_key:
                     existing = conn.execute(
@@ -370,7 +370,7 @@ class UserStore:
             )
         )
         with self._lock, self._connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+            conn.begin_write()
             try:
                 row = conn.execute(
                     "SELECT * FROM generation_usage WHERE id = ?",
@@ -502,7 +502,7 @@ class UserStore:
         config_id = new_id("cfg_")
         now = _iso()
         with self._lock, self._connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+            conn.begin_write()
             try:
                 existing = conn.execute(
                     """
@@ -649,7 +649,7 @@ class UserStore:
         )
         window_iso = _iso(window_start)
         with self._lock, self._connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+            conn.begin_write()
             try:
                 row = conn.execute(
                     "SELECT * FROM rate_limit_buckets WHERE bucket_key = ?",
@@ -706,7 +706,7 @@ class UserStore:
         )
         window_iso = _iso(window_start)
         with self._lock, self._connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+            conn.begin_write()
             try:
                 row = conn.execute(
                     "SELECT * FROM global_usage_counters WHERE counter_key = ?",
@@ -767,7 +767,7 @@ class UserStore:
         day_key = created.strftime("%Y-%m-%d")
         email = f"{guest_id}@guest.local"
         with self._lock, self._connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+            conn.begin_write()
             try:
                 conn.execute(
                     """

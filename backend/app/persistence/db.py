@@ -101,6 +101,14 @@ class DbConn:
             return self.raw.execute(statement)
         return self.raw.execute(statement, tuple(params))
 
+    def begin_write(self) -> None:
+        """Start a write transaction (SQLite IMMEDIATE; plain BEGIN on Postgres)."""
+        if self.backend == "sqlite":
+            self.execute("BEGIN IMMEDIATE")
+        else:
+            # psycopg opens a transaction on first statement; explicit BEGIN is fine.
+            self.execute("BEGIN")
+
     def commit(self) -> None:
         self.raw.commit()
 
