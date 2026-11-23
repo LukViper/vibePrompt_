@@ -121,13 +121,6 @@ export function LoginPage() {
           </div>
         )}
 
-        {!showGoogleGis && !auth.usingSupabase && (
-          <p className="muted google-setup-hint">
-            Google Sign-In needs <code>GOOGLE_OAUTH_CLIENT_ID</code> /{" "}
-            <code>VITE_GOOGLE_CLIENT_ID</code> from Google Cloud Console.
-          </p>
-        )}
-
         <form onSubmit={(e) => void onSubmit(e)} className="auth-form">
           <label htmlFor="login-email">Email</label>
           <input
