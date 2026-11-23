@@ -22,6 +22,7 @@ from app.auth.google_id_token import GoogleIdTokenError, verify_google_id_token
 from app.auth.models import (
     AuthConfigPublic,
     AuthResponse,
+    ChangePasswordRequest,
     GoogleAuthRequest,
     GuestAuthResponse,
     LoginRequest,
@@ -272,6 +273,25 @@ def login(
         expires_minutes=settings.jwt_expires_minutes,
     )
     return AuthResponse(access_token=token, user=store.to_public(user))
+
+
+@router.post("/auth/change-password")
+def change_password(
+    body: ChangePasswordRequest,
+    user: UserRecord = Depends(require_user),
+    store: UserStore = Depends(get_user_store),
+) -> dict[str, str]:
+    """Update the legacy password for the authenticated user."""
+    if (
+        not user.password_hash
+        or not verify_password(body.current_password, user.password_hash)
+    ):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    try:
+        store.update_password_hash(user.id, hash_password(body.new_password))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"status": "ok"}
 
 
 @router.post("/auth/google", response_model=AuthResponse)

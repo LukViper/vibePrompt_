@@ -116,6 +116,21 @@ class UserStore:
             created_at=created,
         )
 
+    def update_password_hash(self, user_id: str, password_hash: str) -> None:
+        """Replace the legacy password hash for an existing user."""
+        with self._lock, self._connect() as conn:
+            cur = conn.execute(
+                """
+                UPDATE users
+                SET password_hash = ?
+                WHERE id = ? AND COALESCE(auth_provider, 'legacy') IN ('legacy', '')
+                """,
+                (password_hash, user_id),
+            )
+            if cur.rowcount == 0:
+                raise ValueError("User not found or not a legacy password account")
+            conn.commit()
+
     def upsert_supabase_user(
         self,
         *,
