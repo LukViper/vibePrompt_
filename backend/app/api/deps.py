@@ -22,13 +22,15 @@ from app.skills.registry import SkillRegistry
 @lru_cache
 def get_repository() -> ProjectRepository:
     settings = get_settings()
-    return SQLiteProjectRepository(settings.database_path)
+    backend, target = settings.resolved_database()
+    return SQLiteProjectRepository(backend=backend, target=target)
 
 
 @lru_cache
 def get_user_store() -> UserStore:
     settings = get_settings()
-    return UserStore(settings.database_path)
+    backend, target = settings.resolved_database()
+    return UserStore(backend=backend, target=target)
 
 
 @lru_cache

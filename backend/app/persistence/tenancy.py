@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import sqlite3
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 
 OrgRole = Literal["admin", "member", "viewer"]
 PlanTier = Literal["free", "pro", "team"]
@@ -38,7 +37,7 @@ def new_id(prefix: str) -> str:
 
 
 def ensure_personal_org(
-    conn: sqlite3.Connection,
+    conn: Any,
     *,
     user_id: str,
     email: str | None = None,
@@ -54,7 +53,10 @@ def ensure_personal_org(
         (user_id,),
     ).fetchone()
     if row:
-        return row["id"] if isinstance(row, sqlite3.Row) else row[0]
+        try:
+            return row["id"]
+        except Exception:
+            return row[0]
 
     org_id = new_id("org")
     label = (email or user_id).split("@")[0][:64] or "Personal"
@@ -77,7 +79,7 @@ def ensure_personal_org(
 
 
 def get_membership(
-    conn: sqlite3.Connection, *, org_id: str, user_id: str
+    conn: Any, *, org_id: str, user_id: str
 ) -> OrgMembership | None:
     row = conn.execute(
         """
@@ -95,7 +97,7 @@ def get_membership(
     )
 
 
-def user_org_ids(conn: sqlite3.Connection, user_id: str) -> list[str]:
+def user_org_ids(conn: Any, user_id: str) -> list[str]:
     rows = conn.execute(
         "SELECT org_id FROM org_memberships WHERE user_id = ?",
         (user_id,),
@@ -103,7 +105,7 @@ def user_org_ids(conn: sqlite3.Connection, user_id: str) -> list[str]:
     return [r["org_id"] for r in rows]
 
 
-def get_org(conn: sqlite3.Connection, org_id: str) -> Organization | None:
+def get_org(conn: Any, org_id: str) -> Organization | None:
     row = conn.execute(
         """
         SELECT id, name, plan, stripe_customer_id, stripe_subscription_id,

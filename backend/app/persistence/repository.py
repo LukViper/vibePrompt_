@@ -1,13 +1,12 @@
-"""SQLite-backed project repository with a clear abstraction boundary."""
+"""Project repository with SQLite (local) or Postgres (production) backing."""
 
 from __future__ import annotations
 
 import json
-import sqlite3
-from pathlib import Path
 from threading import Lock
 from typing import Protocol
 
+from app.persistence.db import DatabaseBackend, DbConn, connect, table_columns
 from app.persistence.schema import apply_schema
 from app.projects.models import ProjectState, ProjectSummary
 
@@ -137,19 +136,29 @@ class InMemoryProjectRepository:
 
 
 class SQLiteProjectRepository:
-    """Local SQLite persistence. Swap later for Postgres without changing callers."""
+    """Project persistence for SQLite or Postgres (name kept for import stability)."""
 
-    def __init__(self, database_path: str) -> None:
-        self.path = Path(database_path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(
+        self,
+        database_path: str | None = None,
+        *,
+        backend: DatabaseBackend | None = None,
+        target: str | None = None,
+    ) -> None:
+        if backend and target:
+            self.backend: DatabaseBackend = backend
+            self.target = target
+        elif database_path:
+            self.backend = "sqlite"
+            self.target = database_path
+        else:
+            raise ValueError("SQLiteProjectRepository requires database_path or backend+target")
+        self.path = self.target
         self._lock = Lock()
         self._init_db()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.path, check_same_thread=False, timeout=30.0)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
+    def _connect(self) -> DbConn:
+        return connect(self.backend, self.target)
 
     def _init_db(self) -> None:
         with self._lock, self._connect() as conn:
@@ -175,7 +184,7 @@ class SQLiteProjectRepository:
     ) -> ProjectState:
         payload = project.model_dump_json()
         with self._lock, self._connect() as conn:
-            cols = {r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()}
+            cols = table_columns(conn, "projects")
             fields = ["id", "name", "data", "created_at", "updated_at"]
             values: list[object] = [
                 project.id,
@@ -200,7 +209,7 @@ class SQLiteProjectRepository:
 
     def get(self, project_id: str, *, org_id: str | None = None) -> ProjectState | None:
         with self._lock, self._connect() as conn:
-            cols = {r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()}
+            cols = table_columns(conn, "projects")
             clauses = ["id = ?"]
             params: list[object] = [project_id]
             if "deleted_at" in cols:
@@ -220,7 +229,7 @@ class SQLiteProjectRepository:
         project.touch()
         payload = project.model_dump_json()
         with self._lock, self._connect() as conn:
-            cols = {r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()}
+            cols = table_columns(conn, "projects")
             clauses = ["id = ?"]
             where_params: list[object] = [project.id]
             if "deleted_at" in cols:
@@ -241,6 +250,7 @@ class SQLiteProjectRepository:
                 raise KeyError(f"Project {project.id} not found")
             conn.commit()
         return project
+
     def list_summaries(
         self,
         *,
@@ -248,7 +258,7 @@ class SQLiteProjectRepository:
         org_id: str | None = None,
     ) -> list[ProjectSummary]:
         with self._lock, self._connect() as conn:
-            cols = {r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()}
+            cols = table_columns(conn, "projects")
             clauses: list[str] = []
             params: list[object] = []
             if "deleted_at" in cols:
@@ -288,7 +298,7 @@ class SQLiteProjectRepository:
         soft: bool = True,
     ) -> bool:
         with self._lock, self._connect() as conn:
-            cols = {r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()}
+            cols = table_columns(conn, "projects")
             clauses = ["id = ?"]
             params: list[object] = [project_id]
             if org_id is not None and "org_id" in cols:
@@ -309,7 +319,7 @@ class SQLiteProjectRepository:
 
     def get_owner(self, project_id: str) -> str | None:
         with self._lock, self._connect() as conn:
-            cols = {r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()}
+            cols = table_columns(conn, "projects")
             if "owner_id" not in cols:
                 return None
             clauses = ["id = ?"]
@@ -325,7 +335,7 @@ class SQLiteProjectRepository:
 
     def get_org_id(self, project_id: str) -> str | None:
         with self._lock, self._connect() as conn:
-            cols = {r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()}
+            cols = table_columns(conn, "projects")
             if "org_id" not in cols:
                 return None
             clauses = ["id = ?"]

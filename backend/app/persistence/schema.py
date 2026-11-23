@@ -1,8 +1,16 @@
-"""SQLite schema bootstrap and lightweight migrations for auth/free-tier/BYOK."""
+"""Schema bootstrap and lightweight migrations for auth/free-tier/BYOK."""
 
 from __future__ import annotations
 
-import sqlite3
+from typing import Any
+
+from app.persistence.db import (
+    DbConn,
+    is_operational_error,
+    list_tables,
+    normalize_ddl,
+    table_columns,
+)
 
 
 SCHEMA_STATEMENTS = (
@@ -248,27 +256,33 @@ PROJECT_OWNER_MIGRATION = (
 )
 
 
-def apply_schema(conn: sqlite3.Connection) -> None:
-    conn.execute("PRAGMA foreign_keys = ON")
+def apply_schema(conn: DbConn | Any) -> None:
+    backend = getattr(conn, "backend", "sqlite")
+    if backend == "sqlite" and hasattr(conn, "execute"):
+        # Native sqlite path still used by KnowledgeStore callers.
+        try:
+            conn.execute("PRAGMA foreign_keys = ON")
+        except Exception:
+            pass
     for statement in SCHEMA_STATEMENTS:
-        conn.execute(statement)
+        ddl = normalize_ddl(statement, backend) if backend in ("sqlite", "postgres") else statement
+        if hasattr(conn, "backend"):
+            conn.execute(ddl)
+        else:
+            conn.execute(ddl)
     _ensure_project_owner_column(conn)
     _ensure_project_tenancy_columns(conn)
     _ensure_usage_cost_columns(conn)
     _ensure_user_profile_columns(conn)
     _ensure_user_org_columns(conn)
     _ensure_guest_password_hash_nullable(conn)
-    conn.commit()
+    if hasattr(conn, "commit"):
+        conn.commit()
 
 
-def _ensure_guest_password_hash_nullable(conn: sqlite3.Connection) -> None:
+def _ensure_guest_password_hash_nullable(conn: DbConn | Any) -> None:
     """Legacy users.password_hash was NOT NULL; guests store NULL. Recreate if needed."""
-    tables = {
-        r[0]
-        for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
-    }
+    tables = list_tables(conn) if isinstance(conn, DbConn) else _sqlite_tables(conn)
     if "users" not in tables:
         return
     # SQLite cannot ALTER COLUMN nullability; empty-string sentinel is fine for guests
@@ -276,36 +290,42 @@ def _ensure_guest_password_hash_nullable(conn: sqlite3.Connection) -> None:
     pass
 
 
-def _ensure_project_owner_column(conn: sqlite3.Connection) -> None:
-    cols = {
-        row[1]
-        for row in conn.execute("PRAGMA table_info(projects)").fetchall()
-    }
-    if "projects" not in {
+def _sqlite_tables(conn: Any) -> set[str]:
+    return {
         r[0]
         for r in conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table'"
         ).fetchall()
-    }:
+    }
+
+
+def _cols(conn: DbConn | Any, table: str) -> set[str]:
+    if isinstance(conn, DbConn):
+        return table_columns(conn, table)
+    tables = _sqlite_tables(conn)
+    if table not in tables:
+        return set()
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+
+
+def _ensure_project_owner_column(conn: DbConn | Any) -> None:
+    tables = list_tables(conn) if isinstance(conn, DbConn) else _sqlite_tables(conn)
+    if "projects" not in tables:
         return
+    cols = _cols(conn, "projects")
     if "owner_id" not in cols:
         try:
             conn.execute(PROJECT_OWNER_MIGRATION[0])
-        except sqlite3.OperationalError:
-            # Column already exists under a race, or projects table shape differs.
-            pass
+        except Exception as exc:
+            if not is_operational_error(exc):
+                raise
 
 
-def _ensure_user_profile_columns(conn: sqlite3.Connection) -> None:
-    tables = {
-        r[0]
-        for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
-    }
+def _ensure_user_profile_columns(conn: DbConn | Any) -> None:
+    tables = list_tables(conn) if isinstance(conn, DbConn) else _sqlite_tables(conn)
     if "users" not in tables:
         return
-    cols = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
+    cols = _cols(conn, "users")
     for col, ddl in (
         ("display_name", "ALTER TABLE users ADD COLUMN display_name TEXT"),
         ("avatar_url", "ALTER TABLE users ADD COLUMN avatar_url TEXT"),
@@ -314,24 +334,13 @@ def _ensure_user_profile_columns(conn: sqlite3.Connection) -> None:
         if col not in cols:
             try:
                 conn.execute(ddl)
-            except sqlite3.OperationalError:
-                pass
+            except Exception as exc:
+                if not is_operational_error(exc):
+                    raise
 
 
-def _table_cols(conn: sqlite3.Connection, table: str) -> set[str]:
-    tables = {
-        r[0]
-        for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
-    }
-    if table not in tables:
-        return set()
-    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
-
-
-def _ensure_project_tenancy_columns(conn: sqlite3.Connection) -> None:
-    cols = _table_cols(conn, "projects")
+def _ensure_project_tenancy_columns(conn: DbConn | Any) -> None:
+    cols = _cols(conn, "projects")
     if not cols:
         return
     for col, ddl in (
@@ -341,12 +350,13 @@ def _ensure_project_tenancy_columns(conn: sqlite3.Connection) -> None:
         if col not in cols:
             try:
                 conn.execute(ddl)
-            except sqlite3.OperationalError:
-                pass
+            except Exception as exc:
+                if not is_operational_error(exc):
+                    raise
 
 
-def _ensure_usage_cost_columns(conn: sqlite3.Connection) -> None:
-    cols = _table_cols(conn, "generation_usage")
+def _ensure_usage_cost_columns(conn: DbConn | Any) -> None:
+    cols = _cols(conn, "generation_usage")
     if not cols:
         return
     for col, ddl in (
@@ -359,12 +369,13 @@ def _ensure_usage_cost_columns(conn: sqlite3.Connection) -> None:
         if col not in cols:
             try:
                 conn.execute(ddl)
-            except sqlite3.OperationalError:
-                pass
+            except Exception as exc:
+                if not is_operational_error(exc):
+                    raise
 
 
-def _ensure_user_org_columns(conn: sqlite3.Connection) -> None:
-    cols = _table_cols(conn, "users")
+def _ensure_user_org_columns(conn: DbConn | Any) -> None:
+    cols = _cols(conn, "users")
     if not cols:
         return
     for col, ddl in (
@@ -374,5 +385,6 @@ def _ensure_user_org_columns(conn: sqlite3.Connection) -> None:
         if col not in cols:
             try:
                 conn.execute(ddl)
-            except sqlite3.OperationalError:
-                pass
+            except Exception as exc:
+                if not is_operational_error(exc):
+                    raise

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -14,7 +13,7 @@ def _utcnow() -> str:
 
 
 def emit_audit(
-    conn: sqlite3.Connection,
+    conn: Any,
     *,
     org_id: str,
     action: str,
@@ -48,7 +47,7 @@ def emit_audit(
 
 
 def list_audit(
-    conn: sqlite3.Connection,
+    conn: Any,
     *,
     org_id: str,
     limit: int = 100,

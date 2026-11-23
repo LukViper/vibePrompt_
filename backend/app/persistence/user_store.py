@@ -1,12 +1,10 @@
-"""SQLite persistence for users, free-tier allocations, usage, and BYOK configs."""
+"""User / free-tier / BYOK persistence (SQLite locally, Postgres in production)."""
 
 from __future__ import annotations
 
-import sqlite3
 from datetime import datetime, timezone
-from pathlib import Path
 from threading import Lock
-from typing import Any
+from typing import Any, Mapping
 from uuid import uuid4
 
 from app.auth.models import UserPublic, UserRecord
@@ -14,6 +12,13 @@ from app.free_tier.models import (
     ByokConfigPublic,
     FundingSource,
     GenerationStatus,
+)
+from app.persistence.db import (
+    DatabaseBackend,
+    DbConn,
+    connect,
+    is_integrity_error,
+    table_columns,
 )
 from app.persistence.schema import apply_schema
 from app.projects.models import utcnow
@@ -32,20 +37,29 @@ def _iso(dt: datetime | None = None) -> str:
 
 
 class UserStore:
-    """Concurrency-safe SQLite store for auth, free tier, usage, and BYOK."""
+    """Concurrency-safe auth/free-tier/BYOK store (SQLite or Postgres)."""
 
-    def __init__(self, database_path: str) -> None:
-        self.path = Path(database_path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(
+        self,
+        database_path: str | None = None,
+        *,
+        backend: DatabaseBackend | None = None,
+        target: str | None = None,
+    ) -> None:
+        if backend and target:
+            self.backend: DatabaseBackend = backend
+            self.target = target
+        elif database_path:
+            self.backend = "sqlite"
+            self.target = database_path
+        else:
+            raise ValueError("UserStore requires database_path or backend+target")
+        self.path = self.target  # backwards-compatible attribute for tests
         self._lock = Lock()
         self._init_db()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.path, check_same_thread=False, timeout=30.0)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        conn.execute("PRAGMA busy_timeout = 30000")
-        return conn
+    def _connect(self) -> DbConn:
+        return connect(self.backend, self.target)
 
     def _init_db(self) -> None:
         with self._lock, self._connect() as conn:
@@ -80,7 +94,9 @@ class UserStore:
                     (user_id, email.strip().lower(), password_hash, _iso(created)),
                 )
                 conn.commit()
-            except sqlite3.IntegrityError as exc:
+            except Exception as exc:
+                if not is_integrity_error(exc):
+                    raise
                 raise ValueError("Email already registered") from exc
             from app.persistence.tenancy import ensure_personal_org
 
@@ -168,7 +184,9 @@ class UserStore:
                         ),
                     )
                     conn.commit()
-                except sqlite3.IntegrityError as exc:
+                except Exception as exc:
+                    if not is_integrity_error(exc):
+                        raise
                     raise ValueError("Unable to create profile for authenticated user") from exc
         user = self.get_user(user_id)
         if user is None:
@@ -192,8 +210,8 @@ class UserStore:
         return self._row_to_user(row) if row else None
 
     @staticmethod
-    def _row_to_user(row: sqlite3.Row) -> UserRecord:
-        keys = row.keys()
+    def _row_to_user(row: Mapping[str, Any]) -> UserRecord:
+        keys = set(row.keys())
         return UserRecord(
             id=row["id"],
             email=row["email"],
@@ -325,7 +343,7 @@ class UserStore:
             except Exception:
                 try:
                     conn.execute("ROLLBACK")
-                except sqlite3.Error:
+                except Exception:
                     pass
                 raise
         return generation_id
@@ -407,7 +425,7 @@ class UserStore:
             except Exception:
                 try:
                     conn.execute("ROLLBACK")
-                except sqlite3.Error:
+                except Exception:
                     pass
                 raise
 
@@ -549,7 +567,7 @@ class UserStore:
             except Exception:
                 try:
                     conn.execute("ROLLBACK")
-                except sqlite3.Error:
+                except Exception:
                     pass
                 raise
         return ByokConfigPublic(
@@ -669,7 +687,7 @@ class UserStore:
             except Exception:
                 try:
                     conn.execute("ROLLBACK")
-                except sqlite3.Error:
+                except Exception:
                     pass
                 raise
 
@@ -724,7 +742,7 @@ class UserStore:
             except Exception:
                 try:
                     conn.execute("ROLLBACK")
-                except sqlite3.Error:
+                except Exception:
                     pass
                 raise
 
@@ -796,7 +814,7 @@ class UserStore:
             except Exception:
                 try:
                     conn.execute("ROLLBACK")
-                except sqlite3.Error:
+                except Exception:
                     pass
                 raise
         user = UserRecord(
@@ -841,9 +859,7 @@ class UserStore:
     # ----------------------------------------------------------- project owner
     def set_project_owner(self, project_id: str, owner_id: str) -> None:
         with self._lock, self._connect() as conn:
-            cols = {
-                r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()
-            }
+            cols = table_columns(conn, "projects")
             if "owner_id" not in cols:
                 return
             conn.execute(
@@ -854,9 +870,7 @@ class UserStore:
 
     def get_project_owner(self, project_id: str) -> str | None:
         with self._lock, self._connect() as conn:
-            cols = {
-                r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()
-            }
+            cols = table_columns(conn, "projects")
             if "owner_id" not in cols:
                 return None
             row = conn.execute(
@@ -975,10 +989,7 @@ class UserStore:
     def admin_usage_metrics(self, *, limit: int = 50) -> dict[str, Any]:
         """Cost / latency aggregates for admin dashboard (API-first)."""
         with self._lock, self._connect() as conn:
-            cols = {
-                r[1]
-                for r in conn.execute("PRAGMA table_info(generation_usage)").fetchall()
-            }
+            cols = table_columns(conn, "generation_usage")
             cost_col = "cost_usd_estimate" if "cost_usd_estimate" in cols else "NULL"
             lat_col = "latency_ms" if "latency_ms" in cols else "NULL"
             proj_col = "project_id" if "project_id" in cols else "NULL"
