@@ -558,11 +558,12 @@ def test_security() -> None:
 
     # BYOK: encrypt/decrypt; public model never returns raw key
     cipher = CredentialCipher("test-creds-encryption-key-32bytes!!")
-    token = cipher.encrypt("sk-test-secret-key-value")
+    plaintext_key = "test-provider-key-value-fixture"
+    token = cipher.encrypt(plaintext_key)
     record(
         area,
         "BYOK keys encrypt to non-plaintext ciphertext",
-        "sk-test-secret" not in token and cipher.decrypt(token) == "sk-test-secret-key-value",
+        plaintext_key not in token and cipher.decrypt(token) == plaintext_key,
         severity="high",
         repro="CredentialCipher.encrypt/decrypt",
     )
