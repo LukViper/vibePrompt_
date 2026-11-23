@@ -806,11 +806,50 @@ a:focus-visible {
 /* —— Workspace stream (structured briefs) —— */
 .chat {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 1.25rem clamp(1rem, 4vw, 2.5rem);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  background: var(--canvas);
+}
+
+.chat-empty {
+  max-width: 720px;
+  margin: auto 0;
+  padding: 1.25rem 1.35rem;
+  border: 1px solid var(--hairline);
+  background: var(--panel);
+}
+
+.chat-empty-title {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.chat-empty .muted {
+  margin: 0 0 0.85rem;
+  max-width: 42ch;
+}
+
+.chat-empty-hints {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--ink-muted);
+  font-size: 0.8125rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.chat-empty-hints li::marker {
+  color: var(--ink-faint);
 }
 
 .msg {
@@ -1000,6 +1039,7 @@ a:focus-visible {
 
 /* —— Composer —— */
 .composer {
+  flex-shrink: 0;
   padding: 0.75rem clamp(1rem, 4vw, 2.5rem) 1rem;
   border-top: 1px solid var(--hairline);
   background: var(--panel);

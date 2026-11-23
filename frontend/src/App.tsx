@@ -334,7 +334,21 @@ function App() {
               </div>
             )}
 
-            <div className="chat">
+            <div className="chat" aria-label="Conversation">
+              {project.messages.length === 0 && !busy ? (
+                <div className="chat-empty">
+                  <p className="chat-empty-title">Conversation</p>
+                  <p className="muted">
+                    Mentor briefs and your replies appear here. Start below —
+                    state the product problem, constraints, and stack.
+                  </p>
+                  <ul className="chat-empty-hints">
+                    <li>What problem are you solving, and for whom?</li>
+                    <li>Which stack or architecture are you committing to?</li>
+                    <li>What evidence supports that choice?</li>
+                  </ul>
+                </div>
+              ) : null}
               {project.messages.map((m) => (
                 <MessageBubble
                   key={m.id}
