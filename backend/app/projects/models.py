@@ -386,6 +386,8 @@ class ContextUpdateRequest(BaseModel):
     scope_in: list[str] | None = None
     scope_out: list[str] | None = None
     tech_stack: list[str] | None = None
+    non_functional_requirements: list[str] | None = None
+    constraints: list[str | dict[str, str]] | None = None
     milestones: list[str] | None = None
     preferences: list[str] | None = None
     rejected_approaches: list[dict[str, str]] | None = None

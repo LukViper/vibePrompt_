@@ -636,6 +636,39 @@ def apply_manual_context_update(
         project.rejected_approaches = items
         applied.append("rejected_approaches")
 
+    if "non_functional_requirements" in updates and updates["non_functional_requirements"] is not None:
+        raw = updates["non_functional_requirements"]
+        if isinstance(raw, list):
+            from app.projects.models import Requirement
+
+            reqs: list[Requirement] = []
+            for item in raw:
+                text = str(item).strip()[:1000] if not isinstance(item, dict) else str(
+                    item.get("text") or ""
+                ).strip()[:1000]
+                if text:
+                    reqs.append(Requirement(text=text, kind="non_functional"))
+            project.non_functional_requirements = reqs
+            applied.append("non_functional_requirements")
+
+    if "constraints" in updates and updates["constraints"] is not None:
+        raw = updates["constraints"]
+        if isinstance(raw, list):
+            from app.projects.models import Constraint
+
+            items: list[Constraint] = []
+            for item in raw:
+                if isinstance(item, dict):
+                    text = str(item.get("text") or "").strip()[:1000]
+                    category = str(item.get("category") or "general").strip()[:80] or "general"
+                else:
+                    text = str(item).strip()[:1000]
+                    category = "general"
+                if text:
+                    items.append(Constraint(text=text, category=category))
+            project.constraints = items
+            applied.append("constraints")
+
     project.touch()
     return project, applied
 
